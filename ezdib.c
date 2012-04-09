@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "ezdib.h"
 
@@ -557,6 +558,73 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 			} // end while
 			
 		} break;
+	
+		default :
+			return 0;
+	
+	} // end switch
+
+	return 1;
+}
+
+int ezd_rect( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
+{
+	// Draw rectangle
+	return 		ezd_line( x_hDib, x1, y1, x2, y1, x_col )
+		   && 	ezd_line( x_hDib, x2, y1, x2, y2, x_col )
+		   &&	ezd_line( x_hDib, x2, y2, x1, y2, x_col )
+		   &&	ezd_line( x_hDib, x1, y2, x1, y1, x_col );
+}
+
+#define EZD_PI		( (double)3.141592654 )
+#define EZD_PI2		( EZD_PI * (double)2 )
+
+int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int r, int x_col )
+{
+	int i, w, h, sw, pw;
+	int res = (int)( ( (double)r * EZD_PI2 ) + 1 );
+	unsigned char *pImg;
+	SImageData *p = (SImageData*)x_hDib;
+	
+	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
+		return _ERR( 0, "Invalid parameters" );
+
+	// Calculate image metrics
+	w = EZD_ABS( p->bih.biWidth ); 
+	h = EZD_ABS( p->bih.biHeight ); 
+	
+	// Ensure pixel is within the image
+	if ( 0 > x || x >= w || 0 > y || y >= h )
+	{	_SHOW( "Point out of range : %d,%d : %dx%d ", x, y, w, h );
+		return 0;
+	} // en dif
+
+	// Pixel and scan width
+	pw = EZD_FITTO( p->bih.biBitCount, 8 );
+	sw = EZD_SW( w, p->bih.biBitCount, 4 );
+
+	// Set the first line
+	switch( p->bih.biBitCount )
+	{
+		case 24 :
+		{
+			// Color values
+			unsigned char r = x_col & 0xff;
+			unsigned char g = ( x_col >> 8 ) & 0xff;
+			unsigned char b = ( x_col >> 16 ) & 0xff;
+
+			for ( i = 0; i < res; i++ )
+			{	int px = x + (int)( (double)r * sin( (double)i * EZD_PI2 / (double)res ) );
+				int py = y + (int)( (double)r * cos( (double)i * EZD_PI2 / (double)res ) );
+				pImg = &p->pImage[ py * sw + px * pw ];
+				pImg[ 0 ] = r, pImg[ 1 ] = g, pImg[ 2 ] = b;
+			} // end for
+
+		} break;
+					
+		case 32 :
+			*(unsigned int*)&p->pImage[ y * sw + x * pw ] = x_col;
+			break;
 	
 		default :
 			return 0;

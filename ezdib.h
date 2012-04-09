@@ -138,6 +138,31 @@ extern "C"
 	*/
 	int ezd_fill_rect( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col );
 
+	/// Outlines the specified rectangle
+	/**
+		\param [in] x_hDib		- Handle to a dib
+		\param [in] x1			- Top Left X coord
+		\param [in] y1			- Top Left Y coord
+		\param [in] x2			- Bottom Right X coord
+		\param [in] y2			- Bottom Right Y coord
+		\param [in] x_col		- Line color
+
+		\return Non zero on success
+	*/
+	int ezd_rect( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col );
+
+	/// Draw circle outline
+	/**
+		\param [in] x_hDib		- Handle to a dib
+		\param [in] x			- Center X coord
+		\param [in] y			- Center Y coord
+		\param [in] r			- Radius
+		\param [in] x_col		- Line color
+
+		\return Non zero on success
+	*/
+	int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int r, int x_col );
+	
 	//--------------------------------------------------------------
 	// Font functions
 	//--------------------------------------------------------------
