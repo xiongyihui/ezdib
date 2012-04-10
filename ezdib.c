@@ -579,10 +579,10 @@ int ezd_rect( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 #define EZD_PI		( (double)3.141592654 )
 #define EZD_PI2		( EZD_PI * (double)2 )
 
-int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int r, int x_col )
+int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int x_rad, int x_col )
 {
-	int i, w, h, sw, pw;
-	int res = (int)( ( (double)r * EZD_PI2 ) + 1 );
+	int i, w, h, sw, pw, px, py;
+	int res = (int)( ( (double)x_rad * EZD_PI2 ) + 1 );
 	unsigned char *pImg;
 	SImageData *p = (SImageData*)x_hDib;
 	
@@ -602,7 +602,7 @@ int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int r, int x_col )
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
 	sw = EZD_SW( w, p->bih.biBitCount, 4 );
-
+	
 	// Set the first line
 	switch( p->bih.biBitCount )
 	{
@@ -612,18 +612,34 @@ int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int r, int x_col )
 			unsigned char r = x_col & 0xff;
 			unsigned char g = ( x_col >> 8 ) & 0xff;
 			unsigned char b = ( x_col >> 16 ) & 0xff;
-
 			for ( i = 0; i < res; i++ )
-			{	int px = x + (int)( (double)r * sin( (double)i * EZD_PI2 / (double)res ) );
-				int py = y + (int)( (double)r * cos( (double)i * EZD_PI2 / (double)res ) );
-				pImg = &p->pImage[ py * sw + px * pw ];
-				pImg[ 0 ] = r, pImg[ 1 ] = g, pImg[ 2 ] = b;
+			{	
+				// Offset for this pixel
+				px = x + (int)( (double)x_rad * sin( (double)i * EZD_PI2 / (double)res ) );
+				py = y + (int)( (double)x_rad * cos( (double)i * EZD_PI2 / (double)res ) );
+				
+				// If it falls on the image
+				if ( 0 <= px && px < w && 0 <= py && py < h )
+				{	pImg = &p->pImage[ py * sw + px * pw ];
+					pImg[ 0 ] = r, pImg[ 1 ] = g, pImg[ 2 ] = b;
+				} // end if
 			} // end for
 
 		} break;
 					
 		case 32 :
-			*(unsigned int*)&p->pImage[ y * sw + x * pw ] = x_col;
+			for ( i = 0; i < res; i++ )
+			{	
+				// Offset for this pixel
+				px = x + (int)( (double)x_rad * sin( (double)i * EZD_PI2 / (double)res ) );
+				py = y + (int)( (double)x_rad * cos( (double)i * EZD_PI2 / (double)res ) );
+				
+				// If it falls on the image
+				if ( 0 <= px && px < w && 0 <= py && py < h )
+					*(unsigned int*)&p->pImage[ py * sw + px * pw ] = x_col;
+
+			} // end for
+			
 			break;
 	
 		default :
@@ -1216,4 +1232,30 @@ int ezd_text( HEZDIMAGE x_hDib, HEZDFONT x_hFont, const char *x_pText, int x_nTe
 	
 	return 1;
 }
+
+#define EZD_CNVTYPE( t, c ) case EZD_TYPE_##t : return oDst + ( (double)( ((c*)pData)[ i ] ) - oSrc ) * rDst / rSrc;
+double ezd_scale_value( int i, int t, void *pData, double oSrc, double rSrc, double oDst, double rDst )
+{
+	switch( t )
+	{
+		EZD_CNVTYPE( CHAR,	 		char );
+		EZD_CNVTYPE( UCHAR,			unsigned char );
+		EZD_CNVTYPE( SHORT, 		short );
+		EZD_CNVTYPE( USHORT,		unsigned short );
+		EZD_CNVTYPE( INT, 			int );
+		EZD_CNVTYPE( UINT, 			unsigned int );
+		EZD_CNVTYPE( LONGLONG, 		long long );
+		EZD_CNVTYPE( ULONGLONG,		unsigned long long );
+		EZD_CNVTYPE( FLOAT, 		float );
+		EZD_CNVTYPE( DOUBLE, 		double );
+		EZD_CNVTYPE( LONGDOUBLE,	long double );
+	
+		default :
+			break;
+	
+	} // end switch
+	
+	return 0;
+}
+
 

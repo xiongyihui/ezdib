@@ -40,7 +40,7 @@ extern "C"
 	// Declare handle
 	struct _HEZDIMAGE; 
 	typedef struct _HEZDIMAGE *HEZDIMAGE;
-
+	
 	/// Creates an empty image
 	/**
 		\param [in]  x_lWidth	- Image width
@@ -161,7 +161,7 @@ extern "C"
 
 		\return Non zero on success
 	*/
-	int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int r, int x_col );
+	int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int x_rad, int x_col );
 	
 	//--------------------------------------------------------------
 	// Font functions
@@ -225,7 +225,81 @@ extern "C"
 		\return Returns non-zero on success
 	*/
 	int ezd_text_size( HEZDFONT x_hFont, const char *x_pText, int x_nTextLen, int *pw, int *ph );
-	
+
+	//--------------------------------------------------------------
+	// Graph functions
+	//--------------------------------------------------------------
+
+	// Element size
+#	define EZD_TYPE_MASK_SIZE		0x00ff
+
+		// Elements are signed values
+#	define EZD_TYPE_MASK_SIGNED		0x0100
+
+		// Array
+#	define EZD_TYPE_MASK_ELEMENT	0x0200
+
+		// Array
+#	define EZD_TYPE_MASK_FLOATING	0x0400
+
+		// Array
+#	define EZD_TYPE_MASK_ARRAY		0x1000
+
+		// Null terminated
+#	define EZD_TYPE_MASK_NULLTERM	0x2000
+
+#	define EZD_TYPE_NONE			0
+#	define EZD_TYPE_SHORT			( EZD_TYPE_MASK_SIGNED | sizeof( short ) )
+#	define EZD_TYPE_USHORT			( sizeof( unsigned short ) )
+#	define EZD_TYPE_INT				( EZD_TYPE_MASK_SIGNED | sizeof( int ) )
+#	define EZD_TYPE_UINT			( sizeof( unsigned int ) )
+#	define EZD_TYPE_LONG			( EZD_TYPE_MASK_SIGNED | sizeof( long ) )
+#	define EZD_TYPE_ULONG			( sizeof( unsigned long ) )
+#	define EZD_TYPE_LONGLONG		( EZD_TYPE_MASK_SIGNED | sizeof( long long ) )
+#	define EZD_TYPE_ULONGLONG		( sizeof( unsigned long long ) )
+
+#	define EZD_TYPE_INT8			( EZD_TYPE_MASK_SIGNED | 1 )
+#	define EZD_TYPE_UINT8			( 1 )
+#	define EZD_TYPE_INT16			( EZD_TYPE_MASK_SIGNED | 2 )
+#	define EZD_TYPE_UINT16			( 2 )
+#	define EZD_TYPE_INT24			( EZD_TYPE_MASK_SIGNED | 3 )
+#	define EZD_TYPE_UINT24			( 3 )
+#	define EZD_TYPE_INT32			( EZD_TYPE_MASK_SIGNED | 4 )
+#	define EZD_TYPE_UINT32			( 4 )
+#	define EZD_TYPE_INT64			( EZD_TYPE_MASK_SIGNED | 8 )
+#	define EZD_TYPE_UINT64			( 8 )
+
+#	define EZD_TYPE_CHAR			( EZD_TYPE_MASK_ELEMENT | EZD_TYPE_MASK_SIGNED | sizeof( char ) )
+#	define EZD_TYPE_UCHAR			( EZD_TYPE_MASK_ELEMENT | sizeof( char ) )
+#	define EZD_TYPE_CHAR8			( EZD_TYPE_MASK_ELEMENT | EZD_TYPE_MASK_SIGNED | 1 )
+#	define EZD_TYPE_UCHAR8			( EZD_TYPE_MASK_ELEMENT | 1 )
+#	define EZD_TYPE_CHAR16			( EZD_TYPE_MASK_ELEMENT | EZD_TYPE_MASK_SIGNED | 2 )
+#	define EZD_TYPE_UCHAR16			( EZD_TYPE_MASK_ELEMENT | 2 )
+#	define EZD_TYPE_CHAR24			( EZD_TYPE_MASK_ELEMENT | EZD_TYPE_MASK_SIGNED | 3 )
+#	define EZD_TYPE_UCHAR24			( EZD_TYPE_MASK_ELEMENT | 3 )
+#	define EZD_TYPE_CHAR32			( EZD_TYPE_MASK_ELEMENT | EZD_TYPE_MASK_SIGNED | 4 )
+#	define EZD_TYPE_UCHAR32			( EZD_TYPE_MASK_ELEMENT | 4 )
+
+#	define EZD_TYPE_FLOAT			( EZD_TYPE_MASK_FLOATING | sizeof( float ) )
+#	define EZD_TYPE_FLOAT32			( EZD_TYPE_MASK_FLOATING | 4 )
+#	define EZD_TYPE_FLOAT64			( EZD_TYPE_MASK_FLOATING | 8 )
+#	define EZD_TYPE_DOUBLE			( EZD_TYPE_MASK_FLOATING | sizeof( double ) )
+#	define EZD_TYPE_LONGDOUBLE		( EZD_TYPE_MASK_FLOATING | sizeof( long double ) )
+
+
+	/// Returns the scaled value of the specified array element
+	/**
+		\param [in] i		- Index of element in pData
+		\param [in] t		- Element type
+		\param [in]	pData	- Pointer to an array of type t
+		\param [in] oSrc	- Source scale offset
+		\param [in] rSrc	- Source scale range
+		\param [in] oDst	- Destination scale offset
+		\param [in] rDst	- Destination scale range
+	*/
+	double ezd_scale_value( int i, int t, void *pData, double oSrc, double rSrc, double oDst, double rDst );
+
+
 #if defined( __cplusplus )	
 };
 #endif
