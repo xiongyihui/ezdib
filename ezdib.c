@@ -349,7 +349,7 @@ int ezd_fill( HEZDIMAGE x_hDib, int x_col )
 			unsigned char r = x_col & 0xff;
 			unsigned char g = ( x_col >> 8 ) & 0xff;
 			unsigned char b = ( x_col >> 16 ) & 0xff;
-			unsigned char *pImg = p->pImage;
+			pImg = p->pImage;
 
 			// Set the first line
 			for( x = 0; x < w; x++, pImg += pw )
@@ -412,7 +412,7 @@ int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col )
 			unsigned char r = x_col & 0xff;
 			unsigned char g = ( x_col >> 8 ) & 0xff;
 			unsigned char b = ( x_col >> 16 ) & 0xff;
-			unsigned char *pImg = &p->pImage[ y * sw + x * pw ];
+			pImg = &p->pImage[ y * sw + x * pw ];
 
 			// Set the pixel color
 			pImg[ 0 ] = r, pImg[ 1 ] = g, pImg[ 2 ] = b;
@@ -460,7 +460,7 @@ int ezd_get_pixel( HEZDIMAGE x_hDib, int x, int y )
 		case 24 :
 		{
 			// Return the color of the specified pixel
-			unsigned char *pImg = &p->pImage[ y * sw + x * pw ];
+			pImg = &p->pImage[ y * sw + x * pw ];
 			return pImg[ 0 ] | ( pImg[ 1 ] << 8 ) | ( pImg[ 2 ] << 16 );
 
 		} break;
@@ -513,7 +513,6 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 			unsigned char r = x_col & 0xff;
 			unsigned char g = ( x_col >> 8 ) & 0xff;
 			unsigned char b = ( x_col >> 16 ) & 0xff;
-			unsigned char *pImg;
 			int mx = 0, my = 0;
 
 			// Draw the line
@@ -538,7 +537,6 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 		case 32 :
 		{
 			// Color values
-			unsigned char *pImg;
 			int mx = 0, my = 0;
 
 			// Draw the line
@@ -1288,7 +1286,6 @@ static int ezd_text_size_r( SFontData *f, const char *x_pText, int x_nTextLen, i
 
 int ezd_text_size( HEZDFONT x_hFont, const char *x_pText, int x_nTextLen, int *pw, int *ph )
 {
-	int i;
 	SFontData *f;
 
 	if ( !pw || !ph )
@@ -1475,7 +1472,7 @@ double ezd_scale_value( int i, int t, void *pData, double oSrc, double rSrc, dou
 		EZD_CNVTYPE( ULONGLONG,		unsigned long long );
 		EZD_CNVTYPE( FLOAT, 		float );
 		EZD_CNVTYPE( DOUBLE, 		double );
-		EZD_CNVTYPE( LONGDOUBLE,	long double );
+//		EZD_CNVTYPE( LONGDOUBLE,	long double );
 
 		default :
 			break;

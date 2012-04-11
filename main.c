@@ -118,9 +118,11 @@ int pie_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x, int y, int rad,
 int main( int argc, char* argv[] )
 {
 	int x, y;
+	HEZDFONT hFont;
+	HEZDIMAGE hDib;
 
 	// Create image
-	HEZDIMAGE hDib = ezd_create( 640, -480, 24 );
+	hDib = ezd_create( 640, -480, 24 );
 	if ( !hDib )
 		return -1;
 
@@ -128,7 +130,7 @@ int main( int argc, char* argv[] )
 	ezd_fill( hDib, 0x606060 );
 
 	// Test fonts
-	HEZDFONT hFont = ezd_load_font( EZD_FONT_TYPE_MEDIUM, 0, 0 );
+	hFont = ezd_load_font( EZD_FONT_TYPE_MEDIUM, 0, 0 );
 	if ( hFont )
 		ezd_text( hDib, hFont, "--- EZDIB Test ---", -1, 10, 10, 0xffffff );
 
