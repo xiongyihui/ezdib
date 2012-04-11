@@ -38,9 +38,9 @@ extern "C"
 #endif
 
 	// Declare handle
-	struct _HEZDIMAGE; 
+	struct _HEZDIMAGE;
 	typedef struct _HEZDIMAGE *HEZDIMAGE;
-	
+
 	/// Creates an empty image
 	/**
 		\param [in]  x_lWidth	- Image width
@@ -55,12 +55,12 @@ extern "C"
 
 	/// Releases the dib handle
 	void ezd_destroy( HEZDIMAGE x_hDib );
-	
+
 	/// Writes the DIB to a file
 	/**
 		\param [in] x_hDib		- Handle to a dib
 		\param [in] x_pFile		- New image filename
-		
+
 		\return Non zero on success
 	*/
 	int ezd_save( HEZDIMAGE x_hDib, const char *x_pFile );
@@ -70,11 +70,11 @@ extern "C"
 	/**
 		\param [in] x_hDib		- Handle to a dib
 		\param [in] x_col		- Fill color
-		
+
 		\return Non zero on success
 	*/
 	int ezd_fill( HEZDIMAGE x_hDib, int x_col );
-	
+
 	/// Returns the width of the specified image
 	int ezd_get_width( HEZDIMAGE x_hDib );
 
@@ -96,11 +96,11 @@ extern "C"
 		\param [in] x			- X coord
 		\param [in] y			- Y coord
 		\param [in] x_col		- Pixel color
-		
+
 		\return Non zero on success
 	*/
 	int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col );
-	
+
 	/// Returns the specified pixel color
 	/**
 		\param [in] x_hDib		- Handle to a dib
@@ -110,8 +110,8 @@ extern "C"
 		\return The color of the specified pixel
 	*/
 	int ezd_get_pixel( HEZDIMAGE x_hDib, int x, int y );
-	
-	
+
+
 	/// Draws a line between the specified points
 	/**
 		\param [in] x_hDib		- Handle to a dib
@@ -124,7 +124,7 @@ extern "C"
 		\return Non zero on success
 	*/
 	int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col );
-	
+
 	/// Fills the specified rectangle
 	/**
 		\param [in] x_hDib		- Handle to a dib
@@ -157,18 +157,42 @@ extern "C"
 		\param [in] x			- Center X coord
 		\param [in] y			- Center Y coord
 		\param [in] r			- Radius
+		\param [in] dStart		- Start angle
+		\param [in] dEnd		- End angle
+		\param [in] x_col		- Line color
+
+		\return Non zero on success
+	*/
+	int ezd_arc( HEZDIMAGE x_hDib, int x, int y, int x_rad, double x_dStart, double x_dEnd, int x_col );
+
+	/// Draw circle outline
+	/**
+		\param [in] x_hDib		- Handle to a dib
+		\param [in] x			- Center X coord
+		\param [in] y			- Center Y coord
+		\param [in] r			- Radius
 		\param [in] x_col		- Line color
 
 		\return Non zero on success
 	*/
 	int ezd_circle( HEZDIMAGE x_hDib, int x, int y, int x_rad, int x_col );
-	
+
+	/// Flood fill starting at the specified point
+	/**
+		\param [in] x_hDib		- Handle to a dib
+		\param [in] x			- Start X coord
+		\param [in] y			- Start Y coord
+		\param [in] x_bcol		- Border color
+		\param [in] x_col		- Fill color
+	*/
+	int ezd_flood_fill( HEZDIMAGE x_hDib, int x, int y, int x_bcol, int x_col );
+
 	//--------------------------------------------------------------
 	// Font functions
 	//--------------------------------------------------------------
-	
+
 	// Declare handle
-	struct _HEZDFONT; 
+	struct _HEZDFONT;
 	typedef struct _HEZDFONT *HEZDFONT;
 
 	// Built in small font
@@ -179,7 +203,7 @@ extern "C"
 
 	// Built in large font
 #	define EZD_FONT_TYPE_LARGE		((unsigned char*)3)
-	
+
 	/// Set this flag to invert the font
 #	define EZD_FONT_FLAG_INVERT		0x01
 
@@ -187,17 +211,17 @@ extern "C"
 	/**
 		\param [in] x_pFt		-	Handle to a font map
 		\param [in] x_pFtSize	-	Size of the specified font table
-		
+
 		This function basically just copies the specified
-		font map and creates and index. 
-		
+		font map and creates and index.
+
 		\return Returns a handle to the loaded font
 	*/
 	HEZDFONT ezd_load_font( const void *x_pFt, int x_nFtSize, unsigned int x_uFlags );
 
 	/// Releases the specified font
 	void ezd_destroy_font( HEZDFONT x_hFont );
-	
+
 	/// Draws the specified text string into the image
 	/**
 		\param [in] x_hDib		- Image in which to draw the text
@@ -299,8 +323,17 @@ extern "C"
 	*/
 	double ezd_scale_value( int i, int t, void *pData, double oSrc, double rSrc, double oDst, double rDst );
 
+	/// Calculates the range of the specified values
+	/**
+		\param [in] t		- Element type
+		\param [in] pData	- Pointer to an array of type t
+		\param [in] nData	- Number of elements in pData
+		\param [in] pMin	- Pointer to a variable that receives the minimum
+		\param [in] pMax	- Pointer to a variable that receives the maximum
+	*/
+	double ezd_calc_range( int t, void *pData, int nData, double *pMin, double *pMax, double *pTotal );
 
-#if defined( __cplusplus )	
+#if defined( __cplusplus )
 };
 #endif
 
