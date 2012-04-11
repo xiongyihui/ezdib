@@ -1,25 +1,56 @@
 
 default_target: all
+_END_ := 1
 
 #-------------------------------------------------------------------
-# Input
+# Configure
 #-------------------------------------------------------------------
 
-#PR := i586-mingw32msvc-
+ifneq ($(findstring debug,$(TGT)),)
+	CFG_DBG := 1
+endif
+		   
+ifneq ($(findstring windows,$(TGT)),)
+	CFG_WIN := 1
+	CFG_SYSTEM := windows
+else
+	CFG_SYSTEM := posix
+endif
+
+ifneq ($(findstring static,$(TGT)),)
+	CFG_STATIC := 1
+endif
+
+ifdef CFG_WIN
+	PR := i586-mingw32msvc-
+endif
+
+#-------------------------------------------------------------------
+# Input / Output
+#-------------------------------------------------------------------
+
+BINPATH := ../bin/$(CFG_SYSTEM)
+OUTNAME := test_ezdib
+
+ifdef CFG_DBG
+	BINPATH := $(BINPATH)-debug
+endif
 
 # Output file
-OUTFILE := test_ezdib
+ifdef CFG_WIN
+	OUTFILE := $(BINPATH)/$(OUTNAME).exe
+else
+	OUTFILE := $(BINPATH)/$(OUTNAME)
+endif
 
 # Input files
 CCFILES := $(wildcard *.c)
 PPFILES := $(wildcard *.cpp)
 
-# Intermediate files
-TMPPATH := tmp
 
 # Object files
-DEPENDS := $(foreach f,$(CCFILES),$(TMPPATH)/c/$(f:.c=.obj)) \
-		   $(foreach f,$(PPFILES),$(TMPPATH)/cpp/$(f:.cpp=.obj))
+DEPENDS := $(foreach f,$(CCFILES),$(BINPATH)/c/$(f:.c=.obj)) \
+		   $(foreach f,$(PPFILES),$(BINPATH)/cpp/$(f:.cpp=.obj))
 
 #-------------------------------------------------------------------
 # Tools
@@ -36,35 +67,51 @@ LD := $(PR)g++
 AR := $(PR)ar -cr
 RC := $(PR)windres
 
-# 'c++' Flags
-PP_FLAGS := -shared -fPIC
+PP_FLAGS :=
+CC_FLAGS :=
 
-# 'c' Flags
-CC_FLAGS := -shared -fPIC
+ifdef CFG_STATIC
+	PP_FLAGS := $(PP_FLAGS) -shared
+	CC_FLAGS := $(CC_FLAGS) -shared
+else
+	PP_FLAGS := $(PP_FLAGS) -shared
+	CC_FLAGS := $(CC_FLAGS) -shared
+endif
 
-# Linker flags
-LD_FLAGS := -fPIC
+ifndef CFG_WIN
+	PP_FLAGS := $(PP_FLAGS) -fPIC
+	CC_FLAGS := $(CC_FLAGS) -fPIC
+	LD_FLAGS := $(LD_FLAGS) -fPIC
+endif
 
-# -mwindows
+ifdef CFG_DBG
+	PP_FLAGS := $(PP_FLAGS) -g -DDEBUG -D_DEBUG
+	CC_FLAGS := $(CC_FLAGS) -g -DDEBUG -D_DEBUG
+	LD_FLAGS := $(LD_FLAGS) -g
+else
+	PP_FLAGS := $(PP_FLAGS) -O2
+	CC_FLAGS := $(CC_FLAGS) -O2
+endif
+
 
 #-------------------------------------------------------------------
 # Build
 #-------------------------------------------------------------------
 
 # Create 'c++' object file path
-$(TMPPATH)/cpp :
+$(BINPATH)/cpp :
 	- $(MD) $@
 
 # Create 'c' object file path
-$(TMPPATH)/c :
+$(BINPATH)/c :
 	- $(MD) $@
 
 # How to build a 'c++' file
-$(TMPPATH)/cpp/%.obj : %.cpp $(TMPPATH)/cpp
+$(BINPATH)/cpp/%.obj : %.cpp $(BINPATH)/cpp
 	$(PP) $< $(PP_FLAGS) -o $@
 
 # How to build a 'c' file
-$(TMPPATH)/c/%.obj : %.c $(TMPPATH)/c
+$(BINPATH)/c/%.obj : %.c $(BINPATH)/c
 	$(CC) $< $(CC_FLAGS) -o $@
 
 # Build the output
