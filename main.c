@@ -118,8 +118,8 @@ int pie_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x, int y, int rad,
 int main( int argc, char* argv[] )
 {
 	int x, y;
-	HEZDFONT hFont;
 	HEZDIMAGE hDib;
+	HEZDFONT hFont;
 
 	// Create image
 	hDib = ezd_create( 640, -480, 24 );
@@ -135,7 +135,7 @@ int main( int argc, char* argv[] )
 		ezd_text( hDib, hFont, "--- EZDIB Test ---", -1, 10, 10, 0xffffff );
 
 	// Draw random lines
-	for ( x = 100; x < 400; x += 10 )
+	for ( x = 20; x < 300; x += 10 )
 		ezd_line( hDib, x, ( x & 1 ) ? 50 : 100, x + 10, !( x & 1 ) ? 50 : 100, 0x00ff00 ),
 		ezd_line( hDib, x + 10, ( x & 1 ) ? 50 : 100, x, !( x & 1 ) ? 50 : 100, 0x0000ff );
 
@@ -150,21 +150,25 @@ int main( int argc, char* argv[] )
 		for ( x = 50; x < 150; x += 4 )
 			ezd_set_pixel( hDib, x, y, 0xffffff );
 
-	// Rectangle
-	ezd_rect( hDib, 35, 295, 605, 445, 0x000000 );
-
-	// Circle
-//	ezd_circle( hDib, 525, 150, 80, 0x000000 );
+	// Circles
+	for ( x = 0; x < 40; x++ )
+		ezd_circle( hDib, 400, 60, x, x * 5 );
 
 	// Draw graphs
 	{
+		// Graph data
 		int data[] = { 11, 54, 23, 87, 34, 54, 75, 44, 66 };
-//		int cols[] = { 0x202020, 0x400000, 0x600000, 0x800000 };
+		
+		// Graph colors
 		int cols[] = { 0x202020, 0x400000, 0x006000, 0x000080 };
+		
+		// Draw bar graph
+		ezd_rect( hDib, 35, 295, 605, 445, 0x000000 );
 		bar_graph( hDib, hFont, 40, 300, 600, 440, EZD_TYPE_INT,
 				   data, sizeof( data ) / sizeof( data[ 0 ] ),
 				   cols, sizeof( cols ) / sizeof( cols[ 0 ] ) );
 
+		// Draw pie graph
 		ezd_circle( hDib, 525, 150, 84, cols[ 0 ] );
 		pie_graph( hDib, hFont, 525, 150, 80, EZD_TYPE_INT,
 				   data, sizeof( data ) / sizeof( data[ 0 ] ),

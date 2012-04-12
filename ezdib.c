@@ -43,7 +43,7 @@
 	be slightly slower.  Unless you are on a very memory constrained system,
 	you will probably prefer to leave this on.
 */
-// #define EZD_STATIC_FONTS
+ #define EZD_STATIC_FONTS
 
 // Debugging
 #if defined( _DEBUG )
@@ -593,12 +593,13 @@ int ezd_rect( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 
 #define EZD_PI		( (double)3.141592654 )
 #define EZD_PI2		( EZD_PI * (double)2 )
+#define EZD_PI4		( EZD_PI * (double)4 )
 
 int ezd_arc( HEZDIMAGE x_hDib, int x, int y, int x_rad, double x_dStart, double x_dEnd, int x_col )
 {
 	double arc;
 	int i, w, h, sw, pw, px, py;
-	int res = (int)( ( (double)x_rad * EZD_PI2 ) + 1 ), resdraw;
+	int res = (int)( (double)x_rad * EZD_PI4 ), resdraw;
 	unsigned char *pImg;
 	SImageData *p = (SImageData*)x_hDib;
 
@@ -656,12 +657,13 @@ int ezd_arc( HEZDIMAGE x_hDib, int x, int y, int x_rad, double x_dStart, double 
 				{	pImg = &p->pImage[ py * sw + px * pw ];
 					pImg[ 0 ] = r, pImg[ 1 ] = g, pImg[ 2 ] = b;
 				} // end if
+
 			} // end for
 
 		} break;
 
 		case 32 :
-			for ( i = 0; i < res; i++ )
+			for ( i = 0; i < resdraw; i++ )
 			{
 				// Offset for this pixel
 				px = x + (int)( (double)x_rad * sin( (double)i * EZD_PI2 / (double)res ) );
