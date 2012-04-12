@@ -37,16 +37,27 @@
 
 #include "ezdib.h"
 
+/// Enable static fonts
+/**
+	This will prevent the creation of a font index, so font drawing will
+	be slightly slower.  Unless you are on a very memory constrained system,
+	you will probably prefer to leave this on.
+*/
+// #define EZD_STATIC_FONTS
+
 // Debugging
-#define EZD_DEBUG
+#if defined( _DEBUG )
+#	define EZD_DEBUG
+#endif
 #if defined( EZD_DEBUG )
 #	define _MSG( m ) printf( "\n%s(%d): %s() : %s\n", __FILE__, __LINE__, __FUNCTION__, m )
 #	define _SHOW( f, ... ) printf( "\n%s(%d): %s() : " f "\n", __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__ )
+#	define _ERR( r, m ) ( _MSG( m ), r )
 #else
 #	define _MSG( m )
 #	define _SHOW( ... )
+#	define _ERR( r, m ) ( r )
 #endif
-#define _ERR( r, m ) ( _MSG( m ), r )
 
 /// Returns the absolute value of 'n'
 #define EZD_ABS( n ) ( ( 0 <= n ) ? n : -n )
@@ -165,6 +176,8 @@ typedef struct _SImageData
 
 } SImageData;
 
+#if !defined( EZD_STATIC_FONTS )
+
 // This structure contains the memory image
 typedef struct _SFontData
 {
@@ -178,6 +191,8 @@ typedef struct _SFontData
 	unsigned char			pGlyph[ 1 ];
 
 } SFontData;
+
+#endif
 
 #if !defined( EZD_NOPACK )
 #	pragma pack( pop )
@@ -349,7 +364,7 @@ int ezd_fill( HEZDIMAGE x_hDib, int x_col )
 			unsigned char r = x_col & 0xff;
 			unsigned char g = ( x_col >> 8 ) & 0xff;
 			unsigned char b = ( x_col >> 16 ) & 0xff;
-			pImg = p->pImage;
+			unsigned char *pImg = p->pImage;
 
 			// Set the first line
 			for( x = 0; x < w; x++, pImg += pw )
@@ -412,7 +427,7 @@ int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col )
 			unsigned char r = x_col & 0xff;
 			unsigned char g = ( x_col >> 8 ) & 0xff;
 			unsigned char b = ( x_col >> 16 ) & 0xff;
-			pImg = &p->pImage[ y * sw + x * pw ];
+			unsigned char *pImg = &p->pImage[ y * sw + x * pw ];
 
 			// Set the pixel color
 			pImg[ 0 ] = r, pImg[ 1 ] = g, pImg[ 2 ] = b;
@@ -460,7 +475,7 @@ int ezd_get_pixel( HEZDIMAGE x_hDib, int x, int y )
 		case 24 :
 		{
 			// Return the color of the specified pixel
-			pImg = &p->pImage[ y * sw + x * pw ];
+			unsigned char *pImg = &p->pImage[ y * sw + x * pw ];
 			return pImg[ 0 ] | ( pImg[ 1 ] << 8 ) | ( pImg[ 2 ] << 16 );
 
 		} break;
@@ -513,6 +528,7 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 			unsigned char r = x_col & 0xff;
 			unsigned char g = ( x_col >> 8 ) & 0xff;
 			unsigned char b = ( x_col >> 16 ) & 0xff;
+			unsigned char *pImg;
 			int mx = 0, my = 0;
 
 			// Draw the line
@@ -537,6 +553,7 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 		case 32 :
 		{
 			// Color values
+			unsigned char *pImg;
 			int mx = 0, my = 0;
 
 			// Draw the line
@@ -1147,11 +1164,58 @@ static const unsigned char font_map_medium [] =
 
 };
 
+const char* ezd_next_glyph( const char* pGlyph )
+{
+	int sz;
+
+	// Last glyph?
+	if ( !pGlyph || !*pGlyph )
+		return 0;
+
+	// Glyph size in bits
+	sz = pGlyph[ 1 ] * pGlyph[ 2 ];
+
+	// Return a pointer to the next glyph
+	return &pGlyph[ 3 + ( ( sz & 0x07 ) ? ( ( sz >> 3 ) + 1 ) : sz >> 3 ) ];
+}
+
+const char* ezd_find_glyph( HEZDFONT x_pFt, const char ch )
+{
+#if !defined( EZD_STATIC_FONTS )
+
+		SFontData *f = (SFontData*)x_pFt;
+
+		// Ensure valid font pointer
+		if ( !f )
+			return 0;
+
+		// Get a pointer to the glyph
+		return f->pIndex[ ch ];
+#else
+
+	const char* pGlyph = (const char*)x_pFt;
+
+	// Find the glyph
+	while ( pGlyph && *pGlyph )
+		if ( ch == *pGlyph )
+			return pGlyph;
+		else
+			pGlyph = ezd_next_glyph( pGlyph );
+
+	// First glyph is the default
+	return (const char*)x_pFt;
+
+#endif
+}
+
+
 HEZDFONT ezd_load_font( const void *x_pFt, int x_nFtSize, unsigned int x_uFlags )
 {
+#if !defined( EZD_STATIC_FONTS )
+
 	int i, sz;
 	SFontData *p;
-	const unsigned char *pFt = (const unsigned char*)x_pFt;
+	const unsigned char *pGlyph, *pFt = (const unsigned char*)x_pFt;
 
 	// Font parameters
 	if ( !pFt )
@@ -1159,7 +1223,7 @@ HEZDFONT ezd_load_font( const void *x_pFt, int x_nFtSize, unsigned int x_uFlags 
 
 	// Check for built in small font
 	if ( EZD_FONT_TYPE_SMALL == pFt )
-			pFt = font_map_small,  x_nFtSize = sizeof( font_map_small );
+		pFt = font_map_small,  x_nFtSize = sizeof( font_map_small );
 
 	// Check for built in large font
 	else if ( EZD_FONT_TYPE_MEDIUM == pFt )
@@ -1198,39 +1262,70 @@ HEZDFONT ezd_load_font( const void *x_pFt, int x_nFtSize, unsigned int x_uFlags 
 		p->pIndex[ i ] = p->pGlyph;
 
 	// Index the glyphs
-	for ( i = 0; i < x_nFtSize && p->pGlyph[ i ]; )
-	{
-		// Index this glyph
-		p->pIndex[ p->pGlyph[ i ] ] = &p->pGlyph[ i ];
-
-		// Calculate offset to the next glyph
-		sz = p->pGlyph[ i + 1 ] * p->pGlyph[ i + 2 ];
-		i += 3 + ( ( sz & 0x07 ) ? ( ( sz >> 3 ) + 1 ) : sz >> 3 );
-
-	} // end while
-
+	pGlyph = p->pGlyph;
+	while ( pGlyph && *pGlyph )
+		p->pIndex[ *pGlyph ] = pGlyph,
+		pGlyph = ezd_next_glyph( pGlyph );
+		
 	// Return the font handle
 	return (HEZDFONT)p;
 
+#else
+
+	// Convert type
+	const unsigned char *pFt = (const unsigned char*)x_pFt;
+
+	// Font parameters
+	if ( !pFt )
+		return _ERR( (HEZDFONT)0, "Invalid parameters" );
+
+	// Check for built in small font
+	if ( EZD_FONT_TYPE_SMALL == pFt )
+		return (HEZDFONT)font_map_small;
+
+	// Check for built in large font
+	else if ( EZD_FONT_TYPE_MEDIUM == pFt )
+		return (HEZDFONT)font_map_medium;
+		
+	// Check for built in large font
+	else if ( EZD_FONT_TYPE_LARGE == pFt )
+		return 0;
+
+	// Just use the users raw font table pointer
+	else
+		return (HEZDFONT)x_pFt;
+
+#endif
 }
 
 /// Releases the specified font
 void ezd_destroy_font( HEZDFONT x_hFont )
 {
+#if !defined( EZD_STATIC_FONTS )
+
 	if ( x_hFont )
 		free( (SFontData*)x_hFont );
+
+#endif
 }
 
-static int ezd_text_size_r( SFontData *f, const char *x_pText, int x_nTextLen, int *pw, int *ph )
+int ezd_text_size( HEZDFONT x_hFont, const char *x_pText, int x_nTextLen, int *pw, int *ph )
 {
 	int i, w, h, lw = 0, lh = 0;
-	unsigned char *pGlyph;
+	const unsigned char *pGlyph;
+
+	// Sanity check
+	if ( !x_hFont || !pw || !ph )
+		return _ERR( 0, "Invalid parameters" );
+
+	// Set all sizes to zero
+	*pw = *ph = 0;
 
 	// For each character in the string
 	for ( i = 0; i < x_nTextLen || ( 0 > x_nTextLen && x_pText[ i ] ); i++ )
 	{
-		// Get a pointer to the glyph
-		pGlyph = f->pIndex[ x_pText[ i ] ];
+		// Get the specified glyph
+		pGlyph = ezd_find_glyph( x_hFont, x_pText[ i ] );
 
 		switch( x_pText[ i ] )
 		{
@@ -1239,7 +1334,7 @@ static int ezd_text_size_r( SFontData *f, const char *x_pText, int x_nTextLen, i
 
 				// Reset width, and grab current height
 				w = 0; //h = lh;
-				i += ezd_text_size_r( f, &x_pText[ i + 1 ], x_nTextLen - i - 1, &w, &lh );
+				i += ezd_text_size( x_hFont, &x_pText[ i + 1 ], x_nTextLen - i - 1, &w, &lh );
 
 				// Take the largest width / height
 				*pw = ( *pw > w ) ? *pw : w;
@@ -1252,7 +1347,7 @@ static int ezd_text_size_r( SFontData *f, const char *x_pText, int x_nTextLen, i
 
 				// New line
 				w = 0; h = 0;
-				i += ezd_text_size_r( f, &x_pText[ i + 1 ], x_nTextLen - i - 1, &w, &h );
+				i += ezd_text_size( x_hFont, &x_pText[ i + 1 ], x_nTextLen - i - 1, &w, &h );
 
 				// Take the longest width
 				*pw = ( *pw > w ) ? *pw : w;
@@ -1282,26 +1377,6 @@ static int ezd_text_size_r( SFontData *f, const char *x_pText, int x_nTextLen, i
 	*ph += lh;
 
 	return i;
-}
-
-int ezd_text_size( HEZDFONT x_hFont, const char *x_pText, int x_nTextLen, int *pw, int *ph )
-{
-	SFontData *f;
-
-	if ( !pw || !ph )
-		return _ERR( 0, "Invalid parameters" );
-
-	f = (SFontData*)x_hFont;
-	if ( !f )
-		return _ERR( 0, "Invalid font handle" );
-
-	// Set all sizes to zero
-	*pw = *ph = 0;
-
-	// Calculate rect
-	ezd_text_size_r( f, x_pText, x_nTextLen, pw, ph );
-
-	return 1;
 }
 
 static void ezd_draw_bmp_24( unsigned char *pImg, int sw, int pw, int inv,
@@ -1386,12 +1461,17 @@ static void ezd_draw_bmp_32( unsigned char *pImg, int sw, int pw, int inv,
 int ezd_text( HEZDIMAGE x_hDib, HEZDFONT x_hFont, const char *x_pText, int x_nTextLen, int x, int y, int x_col )
 {
 	int w, h, sw, pw, inv, i, mh = 0, lx = x;
-	unsigned char *pGlyph;
-	SFontData *f = (SFontData*)x_hFont;
+	const unsigned char *pGlyph;
 	SImageData *p = (SImageData*)x_hDib;
 
+#if !defined( EZD_STATIC_FONTS )
+	SFontData *f = (SFontData*)x_hFont;
+	if ( !f )
+		return _ERR( 0, "Invalid parameters" );
+#endif
+
 	// Sanity checks
-	if ( !f || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
+	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
 		return _ERR( 0, "Invalid parameters" );
 
 	// Calculate image metrics
@@ -1400,8 +1480,10 @@ int ezd_text( HEZDIMAGE x_hDib, HEZDFONT x_hFont, const char *x_pText, int x_nTe
 
 	// Invert font?
 	inv = ( ( 0 < p->bih.biHeight ? 1 : 0 )
-		  ^ ( ( f->uFlags & EZD_FONT_FLAG_INVERT ) ? 1 : 0 ) )
-		  ? -1 : 1;
+#if !defined( EZD_STATIC_FONTS )
+		  ^ ( ( f->uFlags & EZD_FONT_FLAG_INVERT ) ? 1 : 0 )
+#endif
+		  ) ? -1 : 1;
 
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
@@ -1410,8 +1492,8 @@ int ezd_text( HEZDIMAGE x_hDib, HEZDFONT x_hFont, const char *x_pText, int x_nTe
 	// For each character in the string
 	for ( i = 0; i < x_nTextLen || ( 0 > x_nTextLen && x_pText[ i ] ); i++ )
 	{
-		// Get a pointer to the glyph
-		pGlyph = f->pIndex[ x_pText[ i ] ];
+		// Get the specified glyph
+		pGlyph = ezd_find_glyph( x_hFont, x_pText[ i ] );
 
 		// CR, just go back to starting x pos
 		if ( '\r' == x_pText[ i ] )
@@ -1472,7 +1554,7 @@ double ezd_scale_value( int i, int t, void *pData, double oSrc, double rSrc, dou
 		EZD_CNVTYPE( ULONGLONG,		unsigned long long );
 		EZD_CNVTYPE( FLOAT, 		float );
 		EZD_CNVTYPE( DOUBLE, 		double );
-//		EZD_CNVTYPE( LONGDOUBLE,	long double );
+		EZD_CNVTYPE( LONGDOUBLE,	long double );
 
 		default :
 			break;

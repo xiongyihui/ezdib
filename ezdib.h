@@ -222,6 +222,21 @@ extern "C"
 	/// Releases the specified font
 	void ezd_destroy_font( HEZDFONT x_hFont );
 
+	/// Returns a pointer to the next glyph in a font map
+	/**
+		\return A pointer to the next glyph or zero if none
+	*/
+	const char* ezd_next_glyph( const char* pGlyph );	
+	
+	/// Searchs a font table for the specified glyph
+	/**
+		\param [in] x_pFt	- Pointer to a null terminated font table
+		\param [in] ch		- Glyph to find
+		
+		\return A pointer to the glyph or zero if not found
+	*/
+	const char* ezd_find_glyph( HEZDFONT x_pFt, const char ch );
+	
 	/// Draws the specified text string into the image
 	/**
 		\param [in] x_hDib		- Image in which to draw the text
@@ -246,7 +261,7 @@ extern "C"
 		\param [in] pw			- Recieves the calculated width
 		\param [in] ph			- Receives the calculated height
 
-		\return Returns non-zero on success
+		\return Returns number of characters in the text string that were considered
 	*/
 	int ezd_text_size( HEZDFONT x_hFont, const char *x_pText, int x_nTextLen, int *pw, int *ph );
 
