@@ -6,6 +6,9 @@
 
 #include "ezdib.h"
 
+#	define _MSG( m ) printf( "\n%s(%d): %s() : %s\n", __FILE__, __LINE__, __FUNCTION__, m )
+
+
 int bar_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x1, int y1, int x2, int y2,
 			   int nDataType, void *pData, int nDataSize, int *pCols, int nCols )
 {
@@ -117,75 +120,141 @@ int pie_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x, int y, int rad,
 
 int main( int argc, char* argv[] )
 {
-	int x, y;
+	int b, x, y;
 	HEZDIMAGE hDib;
 	HEZDFONT hFont;
+	int bpp[] = { 1, 24, 32, 0 };
 
-	// Create image
-	hDib = ezd_create( 640, -480, 24 );
-	if ( !hDib )
-		return -1;
-
-	// Fill in the background
-	ezd_fill( hDib, 0x606060 );
-
-	// Test fonts
-	hFont = ezd_load_font( EZD_FONT_TYPE_MEDIUM, 0, 0 );
-	if ( hFont )
-		ezd_text( hDib, hFont, "--- EZDIB Test ---", -1, 10, 10, 0xffffff );
-
-	// Draw random lines
-	for ( x = 20; x < 300; x += 10 )
-		ezd_line( hDib, x, ( x & 1 ) ? 50 : 100, x + 10, !( x & 1 ) ? 50 : 100, 0x00ff00 ),
-		ezd_line( hDib, x + 10, ( x & 1 ) ? 50 : 100, x, !( x & 1 ) ? 50 : 100, 0x0000ff );
-
-	// Random red box
-	ezd_fill_rect( hDib, 200, 150, 400, 250, 0x800000 );
-
-	// Random yellow box
-	ezd_fill_rect( hDib, 300, 200, 350, 280, 0xffff00 );
-
-	// Draw random dots
-	for ( y = 150; y < 250; y += 4 )
-		for ( x = 50; x < 150; x += 4 )
-			ezd_set_pixel( hDib, x, y, 0xffffff );
-
-	// Circles
-	for ( x = 0; x < 40; x++ )
-		ezd_circle( hDib, 400, 60, x, x * 5 );
-
-	// Draw graphs
+	//--------------------------------------------------------------
+	// *** Normal example
+	//--------------------------------------------------------------
+	
+	// For each supported pixel depth
+	for ( b = 0; bpp[ b ]; b++ )
 	{
-		// Graph data
-		int data[] = { 11, 54, 23, 87, 34, 54, 75, 44, 66 };
+		// Create output file name
+		char fname[ 256 ] = { 0 };
+		sprintf( fname, "test-%d.bmp", bpp[ b ] );
+		printf( "Creating %s\n", fname );
+
+		// Create image
+		hDib = ezd_create( 640, -480, bpp[ b ], 0 );
+		if ( !hDib )
+			continue;
+
+		// Set color threshold for mono chrome images
+		if ( 1 == bpp[ b ] )
+		{	ezd_set_color_threshold( hDib, 0x80 );
+			ezd_set_palette_color( hDib, 0, 0x806000 );
+			ezd_set_palette_color( hDib, 1, 0x000000 );
+		} // end if
+			
+		// Fill in the background
+		ezd_fill( hDib, 0x404040 );
+
+		// Test fonts
+		hFont = ezd_load_font( EZD_FONT_TYPE_MEDIUM, 0, 0 );
+		if ( hFont )
+			ezd_text( hDib, hFont, "--- EZDIB Test ---", -1, 10, 10, 0xffffff );
+
+		// Draw random lines
+		for ( x = 20; x < 300; x += 10 )
+			ezd_line( hDib, x, ( x & 1 ) ? 50 : 100, x + 10, !( x & 1 ) ? 50 : 100, 0x00ff00 ),
+			ezd_line( hDib, x + 10, ( x & 1 ) ? 50 : 100, x, !( x & 1 ) ? 50 : 100, 0x0000ff );
+
+		// Random red box
+		ezd_fill_rect( hDib, 200, 150, 400, 250, 0x900000 );
+
+		// Random yellow box
+		ezd_fill_rect( hDib, 300, 200, 350, 280, 0xffff00 );
 		
-		// Graph colors
-		int cols[] = { 0x202020, 0x400000, 0x006000, 0x000080 };
-		
-		// Draw bar graph
-		ezd_rect( hDib, 35, 295, 605, 445, 0x000000 );
-		bar_graph( hDib, hFont, 40, 300, 600, 440, EZD_TYPE_INT,
-				   data, sizeof( data ) / sizeof( data[ 0 ] ),
-				   cols, sizeof( cols ) / sizeof( cols[ 0 ] ) );
+		// Dark outline for yellow box
+		ezd_rect( hDib, 300, 200, 350, 280, 0x000000 );
 
-		// Draw pie graph
-		ezd_circle( hDib, 525, 150, 84, cols[ 0 ] );
-		pie_graph( hDib, hFont, 525, 150, 80, EZD_TYPE_INT,
-				   data, sizeof( data ) / sizeof( data[ 0 ] ),
-				   cols, sizeof( cols ) / sizeof( cols[ 0 ] ) );
+		// Draw random dots
+		for ( y = 150; y < 250; y += 4 )
+			for ( x = 50; x < 150; x += 4 )
+				ezd_set_pixel( hDib, x, y, 0xffffff );
 
-	}
+		// Circles
+		for ( x = 0; x < 40; x++ )
+			ezd_circle( hDib, 400, 60, x, x * 5 );
 
-	// Save the test image
-	ezd_save( hDib, "test.bmp" );
+		// Draw graphs
+		{
+			// Graph data
+			int data[] = { 11, 54, 23, 87, 34, 54, 75, 44, 66 };
 
-	/// Releases the specified font
-	if ( hFont )
-		ezd_destroy_font( hFont );
+			// Graph colors
+			int cols[] = { 0xffffff, 0x400000, 0x006000, 0x000080 };
 
-	// Free resources
-	if ( hDib )
-		ezd_destroy( hDib );
+			// Draw bar graph
+			ezd_rect( hDib, 35, 295, 605, 445, cols[ 0 ] );
+			bar_graph( hDib, hFont, 40, 300, 600, 440, EZD_TYPE_INT,
+					   data, sizeof( data ) / sizeof( data[ 0 ] ),
+					   cols, sizeof( cols ) / sizeof( cols[ 0 ] ) );
+
+			// Draw pie graph
+			ezd_circle( hDib, 525, 150, 84, cols[ 0 ] );
+			pie_graph( hDib, hFont, 525, 150, 80, EZD_TYPE_INT,
+					   data, sizeof( data ) / sizeof( data[ 0 ] ),
+					   cols, sizeof( cols ) / sizeof( cols[ 0 ] ) );
+
+		}
+
+		// Save the test image
+		ezd_save( hDib, fname );
+
+		/// Releases the specified font
+		if ( hFont )
+			ezd_destroy_font( hFont );
+
+		// Free resources
+		if ( hDib )
+			ezd_destroy( hDib );
+
+	} // end for
+
+	//--------------------------------------------------------------
+	// *** Example with user supplied static buffers
+	//--------------------------------------------------------------
+	
+	// For each supported pixel depth
+	for ( b = 0; bpp[ b ]; b++ )
+	{
+		// User buffer
+		char user_header[ EZD_HEADER_SIZE ];
+		char user_buffer[ 320 * 240 * 4 ];
+	
+		// Create output file name
+		char fname[ 256 ] = { 0 };
+		sprintf( fname, "user-%d.bmp", bpp[ b ] );
+		printf( "Creating %s\n", fname );
+
+		// Create image
+		hDib = ezd_initialize( user_header, sizeof( user_header ), 320, -240, bpp[ b ], EZD_FLAG_USER_IMAGE_BUFFER );
+		if ( !hDib )
+			continue;
+
+		// Set user buffer
+		if ( !ezd_set_image_buffer( hDib, user_buffer, sizeof( user_buffer ) ) )
+			continue;
+			
+		// Fill in the background
+		ezd_fill( hDib, 0x000000 );
+
+		// Draw circles
+		for ( x = 0; x < 100; x += 4 )
+			ezd_circle( hDib, 160, 120, x, x * 5 );
+
+		// Save the test image
+		ezd_save( hDib, fname );
+
+		// Free resources
+		if ( hDib )
+			ezd_destroy( hDib );
+
+	} // end for
 
 	return 0;
 }

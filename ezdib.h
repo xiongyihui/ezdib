@@ -37,25 +37,123 @@ extern "C"
 {
 #endif
 
-	// Declare handle
+	/// Returns the absolute value of 'n'
+#	define EZD_ABS( n ) ( ( 0 <= n ) ? n : -n )
+
+	/// Fits 'v' to unit size 'u'
+#	define EZD_FITTO( v, u ) ( ( !u ) ? 0 : ( v / u ) + ( ( v % u ) ? 1 : 0 ) )
+
+	/// Aligns 'v' on block size 'a', 'a' must be a power of 2
+#	define EZD_ALIGN( v, a ) ( ( v + ( a - 1 ) ) & ( ~( a - 1 ) ) )
+
+	/** Calculates scan width for a given
+		\param [in] w 	-	Line width in pixels
+		\param [in] bpp	-	Bits per pixel
+		\param [in] a	-	Alignment block size, must be power of 2
+	*/
+#	define EZD_SCANWIDTH( w, bpp, a ) ( EZD_ALIGN( EZD_FITTO( EZD_ABS( w ) * bpp, 8 ), a ) )
+
+	/** Calculates image size for a given
+		\param [in] w 	-	Line width in pixels
+		\param [in] h	-	Image height in pixels
+		\param [in] bpp	-	Bits per pixel
+		\param [in] a	-	Alignment block size, must be power of 2
+	*/
+#	define EZD_IMAGE_SIZE( w, h, bpp, a ) ( EZD_SCANWIDTH( w, bpp, a ) * EZD_ABS( h ) )
+
+	// Declare image handle
 	struct _HEZDIMAGE;
 	typedef struct _HEZDIMAGE *HEZDIMAGE;
 
-	/// Creates an empty image
+	/// Bytes required for image header
+#	define EZD_HEADER_SIZE				68
+	
+	/// Set this flag if you will supply your own image buffer using ezd_set_image_buffer()
+#	define EZD_FLAG_USER_IMAGE_BUFFER	0x0001
+	
+	/// Returns the size buffer required for image headers
 	/**
+		If you use ezd_initialize(), you should call this function to get the
+		number of bytes required for the buffer.
+		
+		If you absolutely must user a static buffer, use EZD_HEADER_SIZE, but
+		be sure and pass EZD_HEADER_SIZE as the second parameter to 
+		ezd_initialize() to help detect space issues ;)
+		
+	*/
+	int ezd_header_size();	
+	
+	/// Creates an empty image using a user supplied buffer
+	/**
+		\param [in]	 x_pBuffer	- Pointer to user buffer
+		\param [in]  x_nBuffer	- Size of buffer in x_pBuffer
 		\param [in]  x_lWidth	- Image width
 		\param [in]  x_lHeight	- Image height
 		\param [in]  x_lBpp		- Image bits per pixel
+		\param [in]  x_uFlags	- Image flags
+		
+		x_nBuffer
+		
+			This parameter can be zero if you don't want to verify the buffer you
+			passed in is large enough.  You should have allocated a buffer that is
+			at least as large as the value returned by ezd_initialize().
+		
+		x_lFlags
+			
+			EZD_FLAG_USER_IMAGE_BUFFER	- Buffer does not include room for image data.
+										  User will provide buffer later by calling
+										  ezd_set_image_buffer().
 
 		\return Image handle or NULL if failure
 
 		\see
 	*/
-    HEZDIMAGE ezd_create( int x_lWidth, int x_lHeight, int x_lBpp );
+	HEZDIMAGE ezd_initialize( void *x_pBuffer, int x_nBuffer, int x_lWidth, int x_lHeight, int x_lBpp, unsigned int x_uFlags );
+	
+	/// Creates an empty image
+	/**
+		\param [in]  x_lWidth	- Image width
+		\param [in]  x_lHeight	- Image height
+		\param [in]  x_lBpp		- Image bits per pixel
+		\param [in]  x_uFlags	- Image flags
+		
+		x_lFlags
+			
+			EZD_FLAG_USER_IMAGE_BUFFER	- Do not allocate memory for image data,
+										  user will provide buffer by calling
+										  ezd_set_image_buffer().
+
+		\return Image handle or NULL if failure
+
+		\see
+	*/
+    HEZDIMAGE ezd_create( int x_lWidth, int x_lHeight, int x_lBpp, unsigned int x_uFlags );
 
 	/// Releases the dib handle
 	void ezd_destroy( HEZDIMAGE x_hDib );
 
+	/// Sets a pointer to the users image buffer
+	/**
+		\param [in] x_hDib	- Handle to a dib
+		\param [in] x_pImg	- Pointer to use image buffer
+		\param [in] x_nImg	- Size of the buffer in x_pImg
+							  If it is not zero, it must match the size decided by 
+							  ezd_crate() or the function will fail.
+	
+		Sets a pointer to the image data that is to be used.  The caller is
+		responsible for freeing the buffer.
+		
+		Use this function if you wish to substitute your own image buffer or 
+		used the EZD_FLAG_USER_IMAGE_BUFFER with ezd_create().
+		
+		Calling this function with a NULL pointer will restore the buffer
+		created by ezd_create().  If you passed the EZD_FLAG_USER_IMAGE_BUFFER
+		to ezd_create(), then drawing functions will fail until you provide
+		a buffer.
+		
+	*/
+	int ezd_set_image_buffer( HEZDIMAGE x_hDib, void *x_pImg, int x_nImg );	
+	
 	/// Writes the DIB to a file
 	/**
 		\param [in] x_hDib		- Handle to a dib
@@ -65,6 +163,30 @@ extern "C"
 	*/
 	int ezd_save( HEZDIMAGE x_hDib, const char *x_pFile );
 
+	/// Sets the threshold color for 1 bit images
+	/**
+		\param [in] x_hDib		- Handle to a dib
+		\param [in] x_col		- Threshold color
+		
+		Colors less than or equal to the threshold color are asigned
+		a value of zero, while large colors are assigned a value of one.
+
+		\return Non zero on success
+	*/
+	int ezd_set_color_threshold( HEZDIMAGE x_hDib, int x_col );
+
+	/// Sets the specified color in the color palette
+	/**
+		\param [in] x_hDib		- Handle to a dib
+		\param [in] x_idx		- Color index to set
+		\param [in] x_col		- Threshold color
+
+		Currently, this library only supports 1 bit images with
+		color palettes.  So x_idx must be zero or one.
+
+		\return Non zero on success
+	*/
+	int ezd_set_palette_color( HEZDIMAGE x_hDib, int x_idx, int x_col );
 
 	/// Fills the image with the specified color
 	/**

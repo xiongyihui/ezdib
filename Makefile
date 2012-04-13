@@ -6,6 +6,9 @@ _END_ := 1
 # Configure
 #-------------------------------------------------------------------
 
+OUTNAME := test_ezdib
+OUTTYPE := exe
+
 ifneq ($(findstring debug,$(TGT)),)
 	CFG_DBG := 1
 endif
@@ -30,7 +33,7 @@ endif
 #-------------------------------------------------------------------
 
 BINPATH := ../bin/$(CFG_SYSTEM)
-OUTNAME := test_ezdib
+OBJPATH := $(BINPATH)/_obj/$(OUTNAME)
 
 ifdef CFG_DBG
 	BINPATH := $(BINPATH)-debug
@@ -38,19 +41,26 @@ endif
 
 # Output file
 ifdef CFG_WIN
-	OUTFILE := $(BINPATH)/$(OUTNAME).exe
+	ifeq ($(OUTTYPE),dll)
+		OUTFILE := $(BINPATH)/$(OUTNAME).dll
+	else
+		OUTFILE := $(BINPATH)/$(OUTNAME).exe
+	endif
 else
-	OUTFILE := $(BINPATH)/$(OUTNAME)
+	ifeq ($(OUTTYPE),dll)
+		OUTFILE := $(BINPATH)/$(OUTNAME).so
+	else
+		OUTFILE := $(BINPATH)/$(OUTNAME)
+	endif
 endif
 
 # Input files
 CCFILES := $(wildcard *.c)
 PPFILES := $(wildcard *.cpp)
 
-
 # Object files
-DEPENDS := $(foreach f,$(CCFILES),$(BINPATH)/c/$(f:.c=.obj)) \
-		   $(foreach f,$(PPFILES),$(BINPATH)/cpp/$(f:.cpp=.obj))
+DEPENDS := $(foreach f,$(CCFILES),$(OBJPATH)/c/$(f:.c=.obj)) \
+		   $(foreach f,$(PPFILES),$(OBJPATH)/cpp/$(f:.cpp=.obj))
 
 #-------------------------------------------------------------------
 # Tools
@@ -78,6 +88,10 @@ else
 	CC_FLAGS := $(CC_FLAGS) -shared
 endif
 
+ifeq ($(OUTTYPE),dll)
+	LD_FLAGS := $(LD_FLAGS) -shared -module
+endif
+
 ifndef CFG_WIN
 	PP_FLAGS := $(PP_FLAGS) -fPIC
 	CC_FLAGS := $(CC_FLAGS) -fPIC
@@ -99,19 +113,19 @@ endif
 #-------------------------------------------------------------------
 
 # Create 'c++' object file path
-$(BINPATH)/cpp :
+$(OBJPATH)/cpp :
 	- $(MD) $@
 
 # Create 'c' object file path
-$(BINPATH)/c :
+$(OBJPATH)/c :
 	- $(MD) $@
 
 # How to build a 'c++' file
-$(BINPATH)/cpp/%.obj : %.cpp $(BINPATH)/cpp
+$(OBJPATH)/cpp/%.obj : %.cpp $(OBJPATH)/cpp
 	$(PP) $< $(PP_FLAGS) -o $@
 
 # How to build a 'c' file
-$(BINPATH)/c/%.obj : %.c $(BINPATH)/c
+$(OBJPATH)/c/%.obj : %.c $(OBJPATH)/c
 	$(CC) $< $(CC_FLAGS) -o $@
 
 # Build the output
@@ -123,6 +137,6 @@ $(OUTFILE) : $(DEPENDS)
 all : $(OUTFILE)
 
 clean :
-	- $(RM) -R $(TMPPATH)
+	- $(RM) -R $(OBJPATH)
 
 rebuild : clean all
