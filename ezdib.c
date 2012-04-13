@@ -66,18 +66,35 @@
 // #define EZD_NO_MATH
 
 // Debugging
-//#if defined( _DEBUG )
+#if defined( _DEBUG )
 #	define EZD_DEBUG
-//#endif
+#endif
 
+//------------------------------------------------------------------
+// Internal config
 //------------------------------------------------------------------
 
 #if !defined( EZD_NO_FILES )
 #	include <stdio.h>
 #endif
 
+// malloc, calloc, free
 #if !defined( EZD_NO_ALLOCATION )
-#	include <stdlib.h>
+#	if !defined( EZD_NO_STDLIB )
+#		include <stdlib.h>
+#	else
+		// No debug functions without stdlib
+#		undef EZD_DEBUG
+#	endif
+#	if !defined( EZD_malloc )
+#		define EZD_malloc malloc
+#	endif
+#	if !defined( EZD_calloc )
+#		define EZD_calloc calloc
+#	endif
+#	if !defined( EZD_free )
+#		define EZD_free free
+#	endif
 #else
 	// Must use static fonts if no allocation routines
 #	define EZD_STATIC_FONTS
@@ -85,8 +102,27 @@
 #	undef EZD_DEBUG
 #endif
 
+// sin(), cos()
 #if !defined( EZD_NO_MATH )
 #	include <math.h>
+#endif
+
+// memcpy() and memset() substitutes
+#if defined( EZD_NO_MEMCPY )
+#	define EZD_MEMCPY ezd_memcpy
+#	define EZD_MEMSET ezd_memset
+static void ezd_memcpy( char *pDst, const char *pSrc, int sz )
+{	while ( 0 < sz-- )
+		*(char*)pDst++ = *(char*)pSrc++;
+}
+static void ezd_memset( char *pDst, int v, int sz )
+{	while ( 0 < sz-- )
+		*(char*)pDst++ = (char)v;
+}
+#else
+#	include <string.h>
+#	define EZD_MEMCPY memcpy
+#	define EZD_MEMSET memset
 #endif
 
 #if defined( EZD_DEBUG )
@@ -99,23 +135,9 @@
 #	define _ERR( r, m ) ( r )
 #endif
 
-// memcpy() and memset() substitutes
-#if defined( EZD_NO_MEMCPY )
-#	define EZD_MEMCPY ezd_memcpy
-#	define EZD_MEMSET ezd_memset
-static void ezd_memcpy( void *pDst, const void *pSrc, int sz )
-{	while ( 0 < sz-- )
-		*(char*)pDst++ = *(char*)pSrc++;
-}
-static void ezd_memset( void *pDst, int v, int sz )
-{	while ( 0 < sz-- )
-		*(char*)pDst++ = (char)v;
-}
-#else
-#	include <string.h>
-#	define EZD_MEMCPY memcpy
-#	define EZD_MEMSET memset
-#endif
+//------------------------------------------------------------------
+// Data structures
+//------------------------------------------------------------------
 
 #if !defined( EZD_NOPACK )
 #	pragma pack( push, 1 )
@@ -144,14 +166,6 @@ typedef struct _SDIBFileHeader
 
 } SDIBFileHeader;
 
-// Default bitmap encoding types
-#define EZD_BI_RGB 		0
-#define EZD_BI_RLE8		1
-#define EZD_BI_RLE4		2
-#define EZD_BI_BITFLD	3
-#define EZD_BI_JPEG		4
-#define EZD_BI_PNG 		5
-
 /// Standard bitmap structure
 typedef struct _SBitmapInfoHeader
 {
@@ -170,15 +184,10 @@ typedef struct _SBitmapInfoHeader
 	/// Bits per pixel / color depth
 	unsigned short			biBitCount;
 
-	/// Type of compression
-	/**
-		This value can be a fourcc code or one of the above
-		enumerations. eBiRgb, etc...
-	*/
+	/// Type of compression used
 	unsigned int			biCompression;
 
-	/// The total size of the image data,
-	/// can be zero for eBiRgb encoded images.
+	/// The total size of the image data
 	unsigned int			biSizeImage;
 
 	/// Horizontal resolution in pixels per meter
@@ -218,10 +227,10 @@ typedef struct _SImageData
 
 	/// Image flags
 	unsigned int			uFlags;
-	
+
 	/// User image pointer
 	unsigned char			*pImage;
-	
+
 	/// Image data
 	unsigned char			pBuffer[ 4 ];
 
@@ -255,7 +264,7 @@ void ezd_destroy( HEZDIMAGE x_hDib )
 	if ( x_hDib )
 	{	SImageData *p = (SImageData*)x_hDib;
 		if ( EZD_FLAG_FREE_BUFFER & p->uFlags )
-			free( (SImageData*)x_hDib );
+			EZD_free( (SImageData*)x_hDib );
 	} // end if
 #endif
 }
@@ -287,7 +296,7 @@ HEZDIMAGE ezd_initialize( void *x_pBuffer, int x_nBuffer, int x_lWidth, int x_lH
 	p = (SImageData*)x_pBuffer;
 		
 	// Initialize the memory
-	EZD_MEMSET( p, 0, sizeof( SImageData ) );
+	EZD_MEMSET( (char*)p, 0, sizeof( SImageData ) );
 
 	// Initialize image metrics
 	p->bih.biSize = sizeof( SBitmapInfoHeader );
@@ -295,7 +304,6 @@ HEZDIMAGE ezd_initialize( void *x_pBuffer, int x_nBuffer, int x_lWidth, int x_lH
 	p->bih.biHeight = x_lHeight;
 	p->bih.biPlanes = 1;
 	p->bih.biBitCount = x_lBpp;
-	p->bih.biCompression = EZD_BI_RGB;
 	p->bih.biSizeImage = nImageSize;
 	
 	// Initialize color palette
@@ -338,12 +346,12 @@ HEZDIMAGE ezd_create( int x_lWidth, int x_lHeight, int x_lBpp, unsigned int x_uF
 		return _ERR( (HEZDIMAGE)0, "Invalid bits per pixel" );
 		
 	// Allocate memory
-	p = (SImageData*)malloc( sizeof( SImageData )
-							 + ( ( EZD_FLAG_USER_IMAGE_BUFFER & x_uFlags ) ? 0 : nImageSize ) );
+	p = (SImageData*)EZD_malloc( sizeof( SImageData )
+								 + ( ( EZD_FLAG_USER_IMAGE_BUFFER & x_uFlags ) ? 0 : nImageSize ) );
 
 	if ( !p )
 		return 0;
-		
+
 	// Initialize the header
 	return ezd_initialize( p, sizeof( SImageData ), x_lWidth, x_lHeight, x_lBpp, x_uFlags | EZD_FLAG_FREE_BUFFER );
 #endif
@@ -356,13 +364,12 @@ int ezd_set_image_buffer( HEZDIMAGE x_hDib, void *x_pImg, int x_nImg )
 	{	_MSG( "Invalid parameters" ); return 0; }
 
 	// Verify image buffer size if needed
-	if ( x_pImg && 0 < x_nImg && x_nImg < p->bih.biSizeImage )
+	if ( x_pImg && 0 < x_nImg && x_nImg < (int)p->bih.biSizeImage )
 	{	_MSG( "Invalid user image buffer size" ); return 0; }
 
 	// Save user image pointer
 	p->pImage = ( !x_pImg && !( EZD_FLAG_USER_IMAGE_BUFFER & p->uFlags ) ) 
 				? p->pBuffer : x_pImg;
-
 	return 1;
 }
 
@@ -375,10 +382,48 @@ int ezd_set_palette_color( HEZDIMAGE x_hDib, int x_idx, int x_col )
 	if ( 0 > x_idx || 1 < x_idx )
 		return _ERR( 0, "Palette index out of range" );
 
-	// Calculate scan width
+	// Set this palette color
 	p->colPalette[ x_idx ] = x_col;
 	
 	return 1;
+}
+
+int ezd_get_palette_color( HEZDIMAGE x_hDib, int x_idx, int x_col )
+{
+	SImageData *p = (SImageData*)x_hDib;
+	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
+		return _ERR( 0, "Invalid parameters" );
+
+	if ( 0 > x_idx || 1 < x_idx )
+		return _ERR( 0, "Palette index out of range" );
+
+	// Return this palette color
+	return p->colPalette[ x_idx ];
+}
+
+int* ezd_get_palette( HEZDIMAGE x_hDib )
+{
+	SImageData *p = (SImageData*)x_hDib;
+	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
+		return _ERR( 0, "Invalid parameters" );
+
+	// Return a pointer to the palette
+	return p->colPalette;
+}
+
+int ezd_get_palette_size( HEZDIMAGE x_hDib )
+{
+	SImageData *p = (SImageData*)x_hDib;
+	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
+		return _ERR( 0, "Invalid parameters" );
+
+	switch( p->bih.biBitCount )
+	{
+		case 1 :
+			return 2;
+	} // end switch
+
+	return 0;
 }
 
 int ezd_set_color_threshold( HEZDIMAGE x_hDib, int x_col )
@@ -489,16 +534,16 @@ int ezd_save( HEZDIMAGE x_hDib, const char *x_pFile )
 
 	// Write the Bitmap header
 	if ( p->bih.biSize != fwrite( &p->bih, 1, p->bih.biSize, fh ) )
-	{	fclose( fh ); return _ERR( 0, "Error writing DIB header" ); }
+	{	fclose( fh ); return _ERR( 0, "Error writing bitmap header" ); }
 
 	// Write the color palette if needed
 	if ( palette_size )
 		if ( sizeof( p->colPalette ) != fwrite( p->colPalette, 1, palette_size, fh ) )
-		{	fclose( fh ); return _ERR( 0, "Error writing DIB header" ); }
+		{	fclose( fh ); return _ERR( 0, "Error writing palette" ); }
 
 	// Write the Image data
 	if ( p->bih.biSizeImage != fwrite( p->pImage, 1, p->bih.biSizeImage, fh ) )
-	{	fclose( fh ); return _ERR( 0, "Error writing DIB image data" ); }
+	{	fclose( fh ); return _ERR( 0, "Error writing image data" ); }
 
 	// Close the file handle
 	fclose( fh );
@@ -510,7 +555,6 @@ int ezd_save( HEZDIMAGE x_hDib, const char *x_pFile )
 int ezd_fill( HEZDIMAGE x_hDib, int x_col )
 {
 	int w, h, sw, pw, x, y;
-	unsigned char *pImg;
 	SImageData *p = (SImageData*)x_hDib;
 
 	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
@@ -567,7 +611,6 @@ int ezd_fill( HEZDIMAGE x_hDib, int x_col )
 int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col )
 {
 	int w, h, sw, pw;
-	unsigned char *pImg;
 	SImageData *p = (SImageData*)x_hDib;
 
 	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
@@ -621,7 +664,6 @@ int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col )
 int ezd_get_pixel( HEZDIMAGE x_hDib, int x, int y )
 {
 	int w, h, sw, pw;
-	unsigned char *pImg;
 	SImageData *p = (SImageData*)x_hDib;
 
 	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
@@ -666,7 +708,6 @@ int ezd_get_pixel( HEZDIMAGE x_hDib, int x, int y )
 int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 {
 	int w, h, sw, pw, xd, yd, xl, yl;
-	unsigned char *pImg;
 	SImageData *p = (SImageData*)x_hDib;
 
 	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
@@ -685,8 +726,6 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
 	sw = EZD_SCANWIDTH( w, p->bih.biBitCount, 4 );
-	
-//_SHOW( "%d\n", sw );
 
 	// Set the first line
 	switch( p->bih.biBitCount )
@@ -751,7 +790,6 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 		case 32 :
 		{
 			// Color values
-			unsigned char *pImg;
 			int mx = 0, my = 0;
 
 			// Draw the line
@@ -953,7 +991,7 @@ int ezd_fill_rect( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
-	sw = EZD_SCANWIDTH( w, p->bih.biBitCount, 4 );
+	sw = EZD_SCANWIDTH( w, p->bih.biBitCount, 1 );
 
 	// Set the first line
 	switch( p->bih.biBitCount )
@@ -1052,7 +1090,7 @@ int ezd_flood_fill( HEZDIMAGE x_hDib, int x, int y, int x_bcol, int x_col )
 	pImg = p->pImage;
 
 	// Allocate space for fill map
-	map = (unsigned char*)calloc( w * h, 1 );
+	map = (unsigned char*)EZD_calloc( w * h, 1 );
 	if ( !map )
 		return 0;
 
@@ -1227,7 +1265,7 @@ int ezd_flood_fill( HEZDIMAGE x_hDib, int x, int y, int x_bcol, int x_col )
 
 	} // end if
 
-	free( map );
+	EZD_free( map );
 
 	return 1;
 #endif
@@ -1506,7 +1544,7 @@ HEZDFONT ezd_load_font( const void *x_pFt, int x_nFtSize, unsigned int x_uFlags 
 		return _ERR( (HEZDFONT)0, "Empty font table" );
 
 	// Allocate space for font buffer
-	p = (SFontData*)malloc( sizeof( SFontData ) + x_nFtSize );
+	p = (SFontData*)EZD_malloc( sizeof( SFontData ) + x_nFtSize );
 	if ( !p )
 		return 0;
 
@@ -1563,7 +1601,7 @@ void ezd_destroy_font( HEZDFONT x_hFont )
 #if !defined( EZD_STATIC_FONTS )
 
 	if ( x_hFont )
-		free( (SFontData*)x_hFont );
+		EZD_free( (SFontData*)x_hFont );
 
 #endif
 }
@@ -1865,7 +1903,7 @@ double ezd_scale_value( int i, int t, void *pData, double oSrc, double rSrc, dou
 		EZD_CNVTYPE( ULONGLONG,		unsigned long long );
 		EZD_CNVTYPE( FLOAT, 		float );
 		EZD_CNVTYPE( DOUBLE, 		double );
-		EZD_CNVTYPE( LONGDOUBLE,	long double );
+//		EZD_CNVTYPE( LONGDOUBLE,	long double );
 
 		default :
 			break;

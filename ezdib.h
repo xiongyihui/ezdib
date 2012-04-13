@@ -38,20 +38,20 @@ extern "C"
 #endif
 
 	/// Returns the absolute value of 'n'
-#	define EZD_ABS( n ) ( ( 0 <= n ) ? n : -n )
+#	define EZD_ABS( n ) ( ( 0 <= (n) ) ? (n) : -(n) )
 
 	/// Fits 'v' to unit size 'u'
-#	define EZD_FITTO( v, u ) ( ( !u ) ? 0 : ( v / u ) + ( ( v % u ) ? 1 : 0 ) )
+#	define EZD_FITTO( v, u ) ( ( !(u) ) ? 0 : ( (v) / (u) ) + ( ( (v) % (u) ) ? 1 : 0 ) )
 
 	/// Aligns 'v' on block size 'a', 'a' must be a power of 2
-#	define EZD_ALIGN( v, a ) ( ( v + ( a - 1 ) ) & ( ~( a - 1 ) ) )
+#	define EZD_ALIGN( v, a ) ( ( (v) + ( (a) - 1 ) ) & ( ~( (a) - 1 ) ) )
 
 	/** Calculates scan width for a given
 		\param [in] w 	-	Line width in pixels
 		\param [in] bpp	-	Bits per pixel
 		\param [in] a	-	Alignment block size, must be power of 2
 	*/
-#	define EZD_SCANWIDTH( w, bpp, a ) ( EZD_ALIGN( EZD_FITTO( EZD_ABS( w ) * bpp, 8 ), a ) )
+#	define EZD_SCANWIDTH( w, bpp, a ) ( EZD_ALIGN( EZD_FITTO( EZD_ABS( (w) ) * (bpp), 8 ), (a) ) )
 
 	/** Calculates image size for a given
 		\param [in] w 	-	Line width in pixels
@@ -59,7 +59,7 @@ extern "C"
 		\param [in] bpp	-	Bits per pixel
 		\param [in] a	-	Alignment block size, must be power of 2
 	*/
-#	define EZD_IMAGE_SIZE( w, h, bpp, a ) ( EZD_SCANWIDTH( w, bpp, a ) * EZD_ABS( h ) )
+#	define EZD_IMAGE_SIZE( w, h, bpp, a ) ( EZD_SCANWIDTH( (w), (bpp), (a) ) * EZD_ABS( (h) ) )
 
 	// Declare image handle
 	struct _HEZDIMAGE;
@@ -187,6 +187,25 @@ extern "C"
 		\return Non zero on success
 	*/
 	int ezd_set_palette_color( HEZDIMAGE x_hDib, int x_idx, int x_col );
+
+	/// Returns the specified color in the color palette
+	/**
+		\param [in] x_hDib		- Handle to a dib
+		\param [in] x_idx		- Color index to set
+		\param [in] x_col		- Threshold color
+
+		Currently, this library only supports 1 bit images with
+		color palettes.  So x_idx must be zero or one.
+
+		\return Color of the specified palette index or zero if failure
+	*/
+	int ezd_get_palette_color( HEZDIMAGE x_hDib, int x_idx, int x_col );
+
+	/// Returns the number of color entries in the palette
+	int ezd_get_palette_size( HEZDIMAGE x_hDib );
+
+	/// Returns a pointer to the palette
+	int* ezd_get_palette( HEZDIMAGE x_hDib );
 
 	/// Fills the image with the specified color
 	/**

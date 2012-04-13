@@ -6,9 +6,6 @@
 
 #include "ezdib.h"
 
-#	define _MSG( m ) printf( "\n%s(%d): %s() : %s\n", __FILE__, __LINE__, __FUNCTION__, m )
-
-
 int bar_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x1, int y1, int x2, int y2,
 			   int nDataType, void *pData, int nDataSize, int *pCols, int nCols )
 {
@@ -61,11 +58,11 @@ int bar_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x1, int y1, int x2, int y
 		v = ezd_scale_value( i, nDataType, pData, dRMin, dRMax - dRMin, 0, y2 - y1 - 2 );
 
 		// Fill in the bar
-		ezd_fill_rect( x_hDib, x1 + tyw + i + ( ( bw + 2 ) * i ), y2 - v - 2,
+		ezd_fill_rect( x_hDib, x1 + tyw + i + ( ( bw + 2 ) * i ), y2 - (int)v - 2,
 							   x1 + tyw + i + ( ( bw + 2 ) * i ) + bw, y2 - 2, pCols[ c ] );
 
 		// Outline the bar
-		ezd_rect( x_hDib, x1 + tyw + i + ( ( bw + 2 ) * i ), y2 - v - 2,
+		ezd_rect( x_hDib, x1 + tyw + i + ( ( bw + 2 ) * i ), y2 - (int)v - 2,
 						  x1 + tyw + i + ( ( bw + 2 ) * i ) + bw, y2 - 2, *pCols );
 	} // end for
 
@@ -79,7 +76,7 @@ int pie_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x, int y, int rad,
 			   int nDataType, void *pData, int nDataSize, int *pCols, int nCols )
 {
 	int i, c;
-	double v, pos, dMin, dMax, dTotal, dRMin, dRMax;
+	double v, pos, dMin, dMax, dTotal;
 
 	// Sanity checks
 	if ( !pData || 0 >= nDataSize || !pCols || !nCols )
@@ -128,7 +125,7 @@ int main( int argc, char* argv[] )
 	//--------------------------------------------------------------
 	// *** Normal example
 	//--------------------------------------------------------------
-	
+
 	// For each supported pixel depth
 	for ( b = 0; bpp[ b ]; b++ )
 	{
@@ -138,7 +135,7 @@ int main( int argc, char* argv[] )
 		printf( "Creating %s\n", fname );
 
 		// Create image
-		hDib = ezd_create( 640, -480, bpp[ b ], 0 );
+		hDib = ezd_create( 800, -480, bpp[ b ], 0 );
 		if ( !hDib )
 			continue;
 
@@ -148,7 +145,7 @@ int main( int argc, char* argv[] )
 			ezd_set_palette_color( hDib, 0, 0x806000 );
 			ezd_set_palette_color( hDib, 1, 0x000000 );
 		} // end if
-			
+
 		// Fill in the background
 		ezd_fill( hDib, 0x404040 );
 
@@ -167,7 +164,7 @@ int main( int argc, char* argv[] )
 
 		// Random yellow box
 		ezd_fill_rect( hDib, 300, 200, 350, 280, 0xffff00 );
-		
+
 		// Dark outline for yellow box
 		ezd_rect( hDib, 300, 200, 350, 280, 0x000000 );
 
@@ -218,14 +215,14 @@ int main( int argc, char* argv[] )
 	//--------------------------------------------------------------
 	// *** Example with user supplied static buffers
 	//--------------------------------------------------------------
-	
+
 	// For each supported pixel depth
 	for ( b = 0; bpp[ b ]; b++ )
 	{
 		// User buffer
 		char user_header[ EZD_HEADER_SIZE ];
 		char user_buffer[ 320 * 240 * 4 ];
-	
+
 		// Create output file name
 		char fname[ 256 ] = { 0 };
 		sprintf( fname, "user-%d.bmp", bpp[ b ] );
@@ -239,7 +236,7 @@ int main( int argc, char* argv[] )
 		// Set user buffer
 		if ( !ezd_set_image_buffer( hDib, user_buffer, sizeof( user_buffer ) ) )
 			continue;
-			
+
 		// Fill in the background
 		ezd_fill( hDib, 0x000000 );
 

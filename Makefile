@@ -32,12 +32,20 @@ endif
 # Input / Output
 #-------------------------------------------------------------------
 
+# Create bin output path
 BINPATH := ../bin/$(CFG_SYSTEM)
-OBJPATH := $(BINPATH)/_obj/$(OUTNAME)
+ifdef CFG_STATIC
+	BINPATH := $(BINPATH)-static
+else
+	BINPATH := $(BINPATH)-shared
+endif
 
 ifdef CFG_DBG
 	BINPATH := $(BINPATH)-debug
 endif
+
+# Create intermediate file output path
+OBJPATH := $(BINPATH)/_obj/$(OUTNAME)
 
 # Output file
 ifdef CFG_WIN
@@ -79,10 +87,11 @@ RC := $(PR)windres
 
 PP_FLAGS :=
 CC_FLAGS :=
+LD_FLAGS :=
 
 ifdef CFG_STATIC
-	PP_FLAGS := $(PP_FLAGS) -shared
-	CC_FLAGS := $(CC_FLAGS) -shared
+	PP_FLAGS := $(PP_FLAGS) -static
+	CC_FLAGS := $(CC_FLAGS) -static
 else
 	PP_FLAGS := $(PP_FLAGS) -shared
 	CC_FLAGS := $(CC_FLAGS) -shared
@@ -90,6 +99,10 @@ endif
 
 ifeq ($(OUTTYPE),dll)
 	LD_FLAGS := $(LD_FLAGS) -shared -module
+else
+	ifdef CFG_STATIC
+	LD_FLAGS := $(LD_FLAGS) -static
+	endif
 endif
 
 ifndef CFG_WIN
