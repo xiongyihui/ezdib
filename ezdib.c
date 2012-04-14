@@ -212,7 +212,7 @@ typedef struct _SBitmapInfoHeader
 #	define EZD_COMPARE_THRESHOLD( c, t ) ( ( c & 0xff ) > t \
 										 || ( ( c >> 8 ) & 0xff ) > t \
 										 || ( ( c >> 16 ) & 0xff ) > t )
-
+										 
 // This structure contains the memory image
 typedef struct _SImageData
 {
@@ -227,6 +227,12 @@ typedef struct _SImageData
 
 	/// Image flags
 	unsigned int			uFlags;
+	
+	/// User set pixel callback function
+	t_ezd_set_pixel			pfSetPixel;
+	
+	/// User data passed to set pixel callback function
+	void					*pSetPixelUser;
 
 	/// User image pointer
 	unsigned char			*pImage;
@@ -373,6 +379,20 @@ int ezd_set_image_buffer( HEZDIMAGE x_hDib, void *x_pImg, int x_nImg )
 	return 1;
 }
 
+int ezd_set_pixel_callback( HEZDIMAGE x_hDib, t_ezd_set_pixel x_pf, void *x_pUser )
+{
+	SImageData *p = (SImageData*)x_hDib;
+	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
+		return _ERR( 0, "Invalid parameters" );
+	
+	// Save user callback info
+	p->pfSetPixel = x_pf;
+	p->pSetPixelUser = x_pUser;
+	
+	return 1;
+}
+
+
 int ezd_set_palette_color( HEZDIMAGE x_hDib, int x_idx, int x_col )
 {
 	SImageData *p = (SImageData*)x_hDib;
@@ -405,7 +425,7 @@ int* ezd_get_palette( HEZDIMAGE x_hDib )
 {
 	SImageData *p = (SImageData*)x_hDib;
 	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize )
-		return _ERR( 0, "Invalid parameters" );
+		return _ERR( (int*)0, "Invalid parameters" );
 
 	// Return a pointer to the palette
 	return p->colPalette;
@@ -517,7 +537,7 @@ int ezd_save( HEZDIMAGE x_hDib, const char *x_pFile )
 		palette_size = sizeof( p->colPalette[ 0 ] ) * 2;
 		
 	// Attempt to open the output file
-	fh = fopen ( x_pFile, "w" );
+	fh = fopen ( x_pFile, "wb" );
 	if ( !fh )
 		return _ERR( 0, "Failed to open DIB file for writing" );
 
@@ -537,7 +557,7 @@ int ezd_save( HEZDIMAGE x_hDib, const char *x_pFile )
 	{	fclose( fh ); return _ERR( 0, "Error writing bitmap header" ); }
 
 	// Write the color palette if needed
-	if ( palette_size )
+	if ( 0 < palette_size )
 		if ( sizeof( p->colPalette ) != fwrite( p->colPalette, 1, palette_size, fh ) )
 		{	fclose( fh ); return _ERR( 0, "Error writing palette" ); }
 
@@ -557,15 +577,31 @@ int ezd_fill( HEZDIMAGE x_hDib, int x_col )
 	int w, h, sw, pw, x, y;
 	SImageData *p = (SImageData*)x_hDib;
 
-	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
+	if ( !p || !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize 
+		 || ( !p->pImage && !p->pfSetPixel ) )
 		return _ERR( 0, "Invalid parameters" );
 		
 	// Calculate image metrics
 	w = EZD_ABS( p->bih.biWidth );
 	h = EZD_ABS( p->bih.biHeight );
+
+	// Check for user callback function
+	if ( p->pfSetPixel )
+	{
+		// Fill each pixel
+		for ( y = 0; y < h; y++ )
+			for( x = 0; x < w; x++ )
+				if ( !p->pfSetPixel( p->pSetPixelUser, x, y, x_col ) )
+					return 0;
+				
+		return 1;
+
+	} // end if
+
+	// Pixel and scan widths
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
 	sw = EZD_SCANWIDTH( w, p->bih.biBitCount, 4 );
-	
+
 	// Set the first line
 	switch( p->bih.biBitCount )
 	{
@@ -613,7 +649,8 @@ int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col )
 	int w, h, sw, pw;
 	SImageData *p = (SImageData*)x_hDib;
 
-	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
+	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize
+		 || ( !p->pImage && !p->pfSetPixel ) )
 		return _ERR( 0, "Invalid parameters" );
 
 	// Calculate image metrics
@@ -626,6 +663,10 @@ int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col )
 		return 0;
 	} // en dif
 
+	// Set the specified pixel
+	if ( p->pfSetPixel )
+		return p->pfSetPixel( p->pSetPixelUser, x, y, x_col );
+
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
 	sw = EZD_SCANWIDTH( w, p->bih.biBitCount, 4 );
@@ -636,6 +677,7 @@ int ezd_set_pixel( HEZDIMAGE x_hDib, int x, int y, int x_col )
 		case 1 :
 			p->pImage[ y * sw + ( x >> 3 ) ] |= 0x80 >> ( x & 7 );
 			break;
+
 		case 24 :
 		{
 			// Color values
@@ -710,7 +752,8 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 	int w, h, sw, pw, xd, yd, xl, yl;
 	SImageData *p = (SImageData*)x_hDib;
 
-	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
+	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize
+		 || ( !p->pImage && !p->pfSetPixel ) )
 		return _ERR( 0, "Invalid parameters" );
 
 	// Calculate image metrics
@@ -722,6 +765,34 @@ int ezd_line( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 	yd = ( y1 < y2 ) ? 1 : -1;
 	xl = ( x1 < x2 ) ? ( x2 - x1 ) : ( x1 - x2 );
 	yl = ( y1 < y2 ) ? ( y2 - y1 ) : ( y1 - y2 );
+
+	// Check for user callback function
+	if ( p->pfSetPixel )
+	{
+		int mx = 0, my = 0, c = EZD_COMPARE_THRESHOLD( x_col, p->colThreshold );
+		static unsigned char xm[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
+
+		// Draw the line
+		while ( x1 != x2 || y1 != y2 )
+		{
+			// Plot pixel
+			if ( 0 <= x1 && x1 < w && 0 <= y1 && y1 < h )
+				if ( !p->pfSetPixel( p->pSetPixelUser, x1, y1, x_col ) )
+					return 0;
+
+			mx += xl;
+			if ( x1 != x2 && mx > yl )
+				x1 += xd, mx -= yl;
+
+			my += yl;
+			if ( y1 != y2 && my > xl )
+				y1 += yd, my -= xl;
+
+		} // end while
+				
+		return 1;
+
+	} // end if
 
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
@@ -843,7 +914,8 @@ int ezd_arc( HEZDIMAGE x_hDib, int x, int y, int x_rad, double x_dStart, double 
 	unsigned char *pImg;
 	SImageData *p = (SImageData*)x_hDib;
 
-	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
+	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize
+		 || ( !p->pImage && !p->pfSetPixel ) )
 		return _ERR( 0, "Invalid parameters" );
 
 	// Dont' draw null arc
@@ -873,11 +945,31 @@ int ezd_arc( HEZDIMAGE x_hDib, int x, int y, int x_rad, double x_dStart, double 
 		return 0;
 	} // en dif
 
+	// Check for user callback function
+	if ( p->pfSetPixel )
+	{
+		// Draw the circle
+		for ( i = 0; i < resdraw; i++ )
+		{
+			// Offset for this pixel
+			px = x + (int)( (double)x_rad * cos( x_dStart + (double)i * EZD_PI2 / (double)res ) );
+			py = y + (int)( (double)x_rad * sin( x_dStart + (double)i * EZD_PI2 / (double)res ) );
+
+			// Plot pixel
+			if ( 0 <= px && px < w && 0 <= py && py < h )
+				if ( !p->pfSetPixel( p->pSetPixelUser, px, py, x_col ) )
+					return 0;
+					
+		} // end while
+	
+		return 1;
+
+	} // end if
+
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
 	sw = EZD_SCANWIDTH( w, p->bih.biBitCount, 4 );
 
-	// Set the first line
 	switch( p->bih.biBitCount )
 	{
 		case 1:
@@ -885,7 +977,7 @@ int ezd_arc( HEZDIMAGE x_hDib, int x, int y, int x_rad, double x_dStart, double 
 			int c = EZD_COMPARE_THRESHOLD( x_col, p->colThreshold );
 			static unsigned char xm[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
 
-			// Draw the line
+			// Draw the circle
 			for ( i = 0; i < resdraw; i++ )
 			{
 				// Offset for this pixel
@@ -989,6 +1081,20 @@ int ezd_fill_rect( HEZDIMAGE x_hDib, int x1, int y1, int x2, int y2, int x_col )
 		return 0;
 	} // en dif
 
+	// Check for user callback function
+	if ( p->pfSetPixel )
+	{
+		// Fill each pixel
+		for ( y = y1; y < y2; y++ )
+			for( x = x1; x < x2; x++ )
+				if ( 0 <= x && x < w && 0 <= y && y < h )
+					if ( !p->pfSetPixel( p->pSetPixelUser, x, y, x_col ) )
+						return 0;
+				
+		return 1;
+
+	} // end if
+	
 	// Pixel and scan width
 	pw = EZD_FITTO( p->bih.biBitCount, 8 );
 	sw = EZD_SCANWIDTH( w, p->bih.biBitCount, 1 );
@@ -1676,6 +1782,49 @@ int ezd_text_size( HEZDFONT x_hFont, const char *x_pText, int x_nTextLen, int *p
 	return i;
 }
 
+static void ezd_draw_bmp_cb( unsigned char *pImg, int x, int y, int sw, int pw, 
+							 int inv, int bw, int bh, const unsigned char *pBmp, 
+							 int col, t_ezd_set_pixel pf, void *pUser )
+{
+	int w, h, lx = x;
+	unsigned char m = 0x80;
+	unsigned char r = col & 0xff;
+	unsigned char g = ( col >> 8 ) & 0xff;
+	unsigned char b = ( col >> 16 ) & 0xff;
+	static unsigned char xm[] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
+
+	// Draw the glyph
+	for( h = 0; h < bh; h++ )
+	{
+		// Draw horz line
+		for( w = 0; w < bw; w++ )
+		{
+			// Next glyph byte?
+			if ( !m )
+				m = 0x80, pBmp++;
+
+			// Is this pixel on?
+			if ( *pBmp & m )
+				if ( !pf( pUser, lx, y, col ) )
+					return 0;
+
+			// Next bmp bit
+			m >>= 1;
+		
+			// Next x pixel
+			lx++;
+			
+		} // end for
+		
+		// Reset x
+		lx = x;
+		
+		// Reset y
+		y++;
+
+	} // end for
+
+}
 
 static void ezd_draw_bmp_1( unsigned char *pImg, int x, int y, int sw, int pw, 
 							int inv, int bw, int bh, const unsigned char *pBmp, int col )
@@ -1814,7 +1963,8 @@ int ezd_text( HEZDIMAGE x_hDib, HEZDFONT x_hFont, const char *x_pText, int x_nTe
 #endif
 
 	// Sanity checks
-	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize || !p->pImage )
+	if ( !p || sizeof( SBitmapInfoHeader ) != p->bih.biSize
+		 || ( !p->pImage && !p->pfSetPixel ) )
 		return _ERR( 0, "Invalid parameters" );
 
 	// Calculate image metrics
@@ -1854,7 +2004,13 @@ int ezd_text( HEZDIMAGE x_hDib, HEZDFONT x_hFont, const char *x_pText, int x_nTe
 				 && 0 <= lx && ( lx + pGlyph[ 1 ] ) < w
 				 && 0 <= y && ( y + pGlyph[ 2 ] ) < h )
 			{
-				switch( p->bih.biBitCount )
+				// Check for user callback function
+				if ( p->pfSetPixel )
+					ezd_draw_bmp_cb( p->pImage, lx, y, sw, pw, inv,
+									 pGlyph[ 1 ], pGlyph[ 2 ], &pGlyph[ 3 ], 
+									 x_col, p->pfSetPixel, p->pSetPixelUser );
+				
+				else switch( p->bih.biBitCount )
 				{
 					case 1 :
 						ezd_draw_bmp_1( p->pImage, lx, y, sw, pw, inv,

@@ -115,6 +115,24 @@ int pie_graph( HEZDIMAGE x_hDib, HEZDFONT x_hFont, int x, int y, int rad,
 	return 1;
 }
 
+typedef struct _SAsciiData
+{
+	int sw;
+	unsigned char *buf;
+} SAsciiData;
+
+int ascii_writer( void *pUser, int x, int y, int c )
+{
+	SAsciiData *p = (SAsciiData*)pUser;
+	if ( !p )
+		return 0;
+	
+	// Write the character
+	p->buf[ y * p->sw + x ] = (unsigned char)c;
+	
+	return 1;
+}
+
 int main( int argc, char* argv[] )
 {
 	int b, x, y;
@@ -135,7 +153,7 @@ int main( int argc, char* argv[] )
 		printf( "Creating %s\n", fname );
 
 		// Create image
-		hDib = ezd_create( 800, -480, bpp[ b ], 0 );
+		hDib = ezd_create( 640, -480, bpp[ b ], 0 );
 		if ( !hDib )
 			continue;
 
@@ -149,6 +167,10 @@ int main( int argc, char* argv[] )
 		// Fill in the background
 		ezd_fill( hDib, 0x404040 );
 
+		// Draw circles
+		for ( x = 0; x < 200; x += 4 )
+			ezd_circle( hDib, 320, 240, x, x * 5 );
+		
 		// Test fonts
 		hFont = ezd_load_font( EZD_FONT_TYPE_MEDIUM, 0, 0 );
 		if ( hFont )
@@ -219,9 +241,12 @@ int main( int argc, char* argv[] )
 	// For each supported pixel depth
 	for ( b = 0; bpp[ b ]; b++ )
 	{
+		const int w = 320, h = 240;
+		const int r = ( ( w > h ) ? ( h >> 1 ) : ( w >> 1 ) ) - 10;
+	
 		// User buffer
 		char user_header[ EZD_HEADER_SIZE ];
-		char user_buffer[ 320 * 240 * 4 ];
+		char user_buffer[ w * h * 4 ];
 
 		// Create output file name
 		char fname[ 256 ] = { 0 };
@@ -229,7 +254,7 @@ int main( int argc, char* argv[] )
 		printf( "Creating %s\n", fname );
 
 		// Create image
-		hDib = ezd_initialize( user_header, sizeof( user_header ), 320, -240, bpp[ b ], EZD_FLAG_USER_IMAGE_BUFFER );
+		hDib = ezd_initialize( user_header, sizeof( user_header ), w, -h, bpp[ b ], EZD_FLAG_USER_IMAGE_BUFFER );
 		if ( !hDib )
 			continue;
 
@@ -241,8 +266,8 @@ int main( int argc, char* argv[] )
 		ezd_fill( hDib, 0x000000 );
 
 		// Draw circles
-		for ( x = 0; x < 100; x += 4 )
-			ezd_circle( hDib, 160, 120, x, x * 5 );
+		for ( x = 0; x < r; x += 4 )
+			ezd_circle( hDib, w >> 1, h >> 1, x, x * 5 );
 
 		// Save the test image
 		ezd_save( hDib, fname );
@@ -253,5 +278,61 @@ int main( int argc, char* argv[] )
 
 	} // end for
 
+	//--------------------------------------------------------------
+	// *** Example using un-buffered user callback and no allocations
+	//--------------------------------------------------------------
+
+	//--------------------------------------------------------------
+	// *** Example using ASCII buffer and no allocations
+	//--------------------------------------------------------------
+
+	// Pixel depth doesn't mean anything here
+	// for ( b = 0; bpp[ b ]; b++ )
+	{
+		SAsciiData ad;
+		const int w = 64, h = 32;
+		char ascii[ ( w + 1 ) * h + 1 ];
+		char user_header[ EZD_HEADER_SIZE ];
+		
+		hDib = ezd_initialize( user_header, sizeof( user_header ), w, -h, 1, EZD_FLAG_USER_IMAGE_BUFFER );
+		if ( !hDib )
+		{	printf( "Fail\n" );
+			return -1;
+		} // end if
+			
+		// Null terminate
+		ascii[ ( w + 1 ) * h ] = 0;
+		
+		// Fill in new lines
+		for ( y = 0; y < h - 1; y++ )
+			ascii[ y * ( w + 1 ) + w ] = '\n';
+		
+		// Set pixel callback function
+		ad.sw = w + 1; ad.buf = ascii;
+		ezd_set_pixel_callback( hDib, &ascii_writer, &ad );
+
+		// Fill background
+		ezd_fill( hDib, ' ' );
+		
+		// Border
+		ezd_rect( hDib, 0, 0, w - 1, h - 1, '.' );
+		
+		// Circles
+		ezd_circle( hDib, w >> 1, h >> 1, 5, 'o' );
+		ezd_circle( hDib, w >> 1, h >> 1, 8, 'O' );
+		
+		// Test fonts
+		hFont = ezd_load_font( EZD_FONT_TYPE_SMALL, 0, 0 );
+		if ( hFont )
+			ezd_text( hDib, hFont, "The\nEnd", -1, 4, 2, '#' );
+		
+		if ( hDib )
+			ezd_destroy( hDib );
+
+		// Show our buffer
+		printf( "%s\n", ascii );
+			
+	} // end for
+	
 	return 0;
 }

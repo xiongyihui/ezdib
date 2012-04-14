@@ -66,10 +66,35 @@ extern "C"
 	typedef struct _HEZDIMAGE *HEZDIMAGE;
 
 	/// Bytes required for image header
-#	define EZD_HEADER_SIZE				68
+#	define EZD_HEADER_SIZE				128
 	
 	/// Set this flag if you will supply your own image buffer using ezd_set_image_buffer()
 #	define EZD_FLAG_USER_IMAGE_BUFFER	0x0001
+	
+	/// Set pixel function typedef.  Supply your own set pixel 
+	/// function to support unbuffered io.
+	/**
+		\param [in] pUser	- User data passed to ezd_set_pixel_callback()
+		\param [in] x		- X coord of pixel
+		\param [in] y		- Y coord of pixel
+		\param [in] c		- Pixel color
+		
+		\return Return non-zero to continue the current drawing operation,
+				return zero to abort.
+	*/
+	typedef int (*t_ezd_set_pixel)( void *pUser, int x, int y, int c );
+	
+	/// Supply your own set pixel function to support unbuffered io.
+	/**
+		\param [in] x_pf	- Pointer to user set pixel callback function.
+		\param [in] x_pUser	- Data passed to user callback function.
+		
+		If you don't need a buffer, you should pass the  
+		EZD_FLAG_USER_IMAGE_BUFFER flag to ezd_create() or ezd_initialize().
+		
+		\return Non-zero if success, otherwise zero
+	*/
+	int ezd_set_pixel_callback( HEZDIMAGE x_hDib, t_ezd_set_pixel x_pf, void *x_pUser );
 	
 	/// Returns the size buffer required for image headers
 	/**
