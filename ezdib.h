@@ -78,11 +78,12 @@ extern "C"
 		\param [in] x		- X coord of pixel
 		\param [in] y		- Y coord of pixel
 		\param [in] c		- Pixel color
+		\param [in] f		- Flags
 		
 		\return Return non-zero to continue the current drawing operation,
 				return zero to abort.
 	*/
-	typedef int (*t_ezd_set_pixel)( void *pUser, int x, int y, int c );
+	typedef int (*t_ezd_set_pixel)( void *pUser, int x, int y, int c, int f );
 	
 	/// Supply your own set pixel function to support unbuffered io.
 	/**
