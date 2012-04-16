@@ -129,10 +129,11 @@ typedef struct _SAsciiData
 int ascii_writer( void *pUser, int x, int y, int c, int f )
 {
 	SAsciiData *p = (SAsciiData*)pUser;
+	unsigned char ch = (unsigned char)( f & 0xff );
+
 	if ( !p )
 		return 0;
-	
-	unsigned char ch = (unsigned char)( f & 0xff );
+
 	if ( ( '0' <= ch && '9' >= ch )
 		 || ( 'A' <= ch && 'Z' >= ch )
 		 || ( 'a' <= ch && 'z' >= ch ) )
@@ -157,14 +158,11 @@ typedef struct _SDotMatrixData
 
 int dotmatrix_writer( void *pUser, int x, int y, int c, int f )
 {
+	int cc, r, dw = 3;
 	HEZDIMAGE hDib = (HEZDIMAGE)pUser;
+
 	if ( !hDib )
 		return 0;
-
-	int rx, gx, bx, cc, r, dw = 3;
-
-	// Which way do our pixels go?
-	int inv = ( x & 1 ) ^ ( y & 1 );
 
 	cc = c & 0xff;
 	for ( r = 0; r < dw; r++ )
@@ -302,7 +300,7 @@ int main( int argc, char* argv[] )
 	
 		// User buffer
 		char user_header[ EZD_HEADER_SIZE ];
-		char user_buffer[ w * h * 4 ];
+		char user_buffer[ 320 * 240 * 4 ];
 
 		// Create output file name
 		char fname[ 256 ] = { 0 };
@@ -341,9 +339,8 @@ int main( int argc, char* argv[] )
 	// Pixel depth doesn't mean anything here
 	// for ( b = 0; bpp[ b ]; b++ )
 	{
-		SDotMatrixData dmd;
-		const int w = 640, h = 480;
 		HEZDIMAGE hDmd;
+		const int w = 640, h = 480;
 		
 		printf( "Creating dotmatrix.bmp\n" );
 		
@@ -405,7 +402,7 @@ int main( int argc, char* argv[] )
 	{
 		SAsciiData ad;
 		const int w = 44, h = 20;
-		char ascii[ ( w + 1 ) * h + 1 ];
+		char ascii[ ( 44 + 1 ) * 20 + 1 ];
 		char user_header[ EZD_HEADER_SIZE ];
 		
 		hDib = ezd_initialize( user_header, sizeof( user_header ), w, -h, 1, EZD_FLAG_USER_IMAGE_BUFFER );
