@@ -161,7 +161,7 @@ int dotmatrix_writer( void *pUser, int x, int y, int c, int f )
 	if ( !hDib )
 		return 0;
 
-	int rx, gx, bx, cc, r, dw = 4;
+	int rx, gx, bx, cc, r, dw = 3;
 
 	// Which way do our pixels go?
 	int inv = ( x & 1 ) ^ ( y & 1 );
@@ -366,7 +366,7 @@ int main( int argc, char* argv[] )
 		// Draw some text
 		hFont = ezd_load_font( EZD_FONT_TYPE_MEDIUM, 0, 0 );
 		if ( hFont )
-			ezd_text( hDib, hFont, "Hello World!", -1, 2, 2, 0xa0a0a0 );
+			ezd_text( hDib, hFont, "Hello World!", -1, 4, 4, 0xa0a0a0 );
 
 		{
 			// Graph data
@@ -376,7 +376,7 @@ int main( int argc, char* argv[] )
 			int cols[] = { 0xffffff, 0x400000, 0x006000, 0x000080 };
 
 			// Draw bar graph
-			bar_graph( hDib, 0, 2, 16, 74, 50, EZD_TYPE_INT,
+			bar_graph( hDib, 0, 2, 16, 100, 70, EZD_TYPE_INT,
 					   data, sizeof( data ) / sizeof( data[ 0 ] ),
 					   cols, sizeof( cols ) / sizeof( cols[ 0 ] ) );
 
